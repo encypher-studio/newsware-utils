@@ -66,7 +66,7 @@ func (b *NewsRepository) Init(config ElasticConfig) error {
 	return nil
 }
 
-func (b *NewsRepository) InsertNews(news []*News, insertedCallback func(totalIndexed int, lastIndex int)) error {
+func (b *NewsRepository) InsertBatch(news []*News, insertedCallback func(totalIndexed int, lastIndex int)) error {
 	shouldBreak := false
 	fromIndex := 0
 
@@ -125,6 +125,22 @@ func (b *NewsRepository) InsertNews(news []*News, insertedCallback func(totalInd
 			shouldBreak = true
 		}
 	}
+
+	return nil
+}
+
+func (b *NewsRepository) Insert(news *News) error {
+	news.CreationTime = time.Now()
+	if len(news.Body) > maxQuerySize {
+		news.Body = ""
+	}
+
+	res, err := b.typedClient.Index(index).Request(news).Do(context.Background())
+	if err != nil {
+		return errors.Wrap(err, "failed to insert news")
+	}
+
+	news.Id = res.Id_
 
 	return nil
 }

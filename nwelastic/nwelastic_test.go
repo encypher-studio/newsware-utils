@@ -61,7 +61,7 @@ func (r *newsRepositorySuite) TearDownSubTest() {
 	}
 }
 
-func (r *newsRepositorySuite) TestNewsRepository_InsertNews() {
+func (r *newsRepositorySuite) TestNewsRepository_InsertBatch() {
 	maxQuerySize = 1000
 	defaultTime := time.Now()
 
@@ -191,7 +191,7 @@ func (r *newsRepositorySuite) TestNewsRepository_InsertNews() {
 				v := *news
 				insertArgs[i] = &v
 			}
-			err := r.newsRepository.InsertNews(insertArgs, func(int, int) {})
+			err := r.newsRepository.InsertBatch(insertArgs, func(int, int) {})
 			if !r.NoError(err) {
 				r.FailNow("")
 			}
@@ -234,18 +234,79 @@ func (r *newsRepositorySuite) TestNewsRepository_InsertNews() {
 				r.FailNow("expected and actuals news lengths don't match")
 			}
 			for i, actualNewsItem := range actualNews {
-				r.Equal(tt.expectedNews[i].Headline, actualNewsItem.Headline)
-				r.Equal(tt.expectedNews[i].Body, actualNewsItem.Body)
-				r.Equal(tt.expectedNews[i].Tickers, actualNewsItem.Tickers)
-				r.Equal(tt.expectedNews[i].Ciks, actualNewsItem.Ciks)
-				r.Equal(tt.expectedNews[i].Link, actualNewsItem.Link)
-				r.Equal(tt.expectedNews[i].Source, actualNewsItem.Source)
-
-				// Time is tested within a delta of 1 millisecond since rethinkdb has millisecond precision, and Go microsecond
-				r.WithinDuration(tt.expectedNews[i].PublicationTime, actualNewsItem.PublicationTime, time.Millisecond)
-				r.WithinDuration(tt.expectedNews[i].ReceivedTime, actualNewsItem.ReceivedTime, time.Millisecond)
-				r.WithinDuration(time.Now(), actualNewsItem.CreationTime, time.Second*10)
+				r.assertNewsEqual(tt.expectedNews[i], actualNewsItem)
 			}
+		})
+	}
+}
+
+func (r *newsRepositorySuite) TestNewsRepository_Insert() {
+	maxQuerySize = 1000
+	defaultTime := time.Now()
+
+	tests := []struct {
+		name         string
+		news         *News
+		expectedNews *News
+	}{
+		{
+			"insert news",
+			&News{
+				Headline:        "headline",
+				Body:            "body",
+				Tickers:         []string{"ticker"},
+				Ciks:            []int{1, 2, 3},
+				Link:            "link",
+				Source:          "SOURCE",
+				PublicationTime: defaultTime.Add(time.Minute),
+				ReceivedTime:    defaultTime.Add(time.Minute),
+			},
+			nil,
+		},
+	}
+	for _, tt := range tests {
+		r.Run(tt.name, func() {
+			insertArgs := *tt.news
+			err := r.newsRepository.Insert(&insertArgs)
+			if !r.NoError(err) {
+				r.FailNow("")
+			}
+
+			_, err = r.newsRepository.typedClient.Indices.Refresh().Do(context.Background())
+			if !r.NoError(err) {
+				r.FailNow("")
+			}
+
+			resp, err := r.newsRepository.typedClient.
+				Search().
+				Index(index).
+				Request(&search.Request{
+					Query: &types.Query{
+						MatchAll: &types.MatchAllQuery{
+							Boost: float32Ptr(1.2),
+						},
+					},
+					Sort: []types.SortCombinations{publicationTimeSort{sort{Order: "desc"}}},
+				}).
+				Do(context.Background())
+			r.NoError(err)
+
+			if !r.Len(resp.Hits.Hits, 1, "returned wrong number of news") {
+				r.FailNow("expected and actuals news lengths don't match")
+			}
+
+			actualNews := &News{}
+			err = json.Unmarshal(resp.Hits.Hits[0].Source_, actualNews)
+			if err != nil {
+				r.FailNow("unmarshalling elastic search response")
+			}
+
+			// If tt.expectedNews is nil, we use the insert args as expected result
+			if tt.expectedNews == nil {
+				tt.expectedNews = tt.news
+			}
+
+			r.assertNewsEqual(tt.expectedNews, actualNews)
 		})
 	}
 }
@@ -268,3 +329,17 @@ func generateBody(size int) string {
 }
 
 func float32Ptr(v float32) *float32 { return &v }
+
+func (r *newsRepositorySuite) assertNewsEqual(expected *News, actual *News) {
+	r.Equal(expected.Headline, actual.Headline)
+	r.Equal(expected.Body, actual.Body)
+	r.Equal(expected.Tickers, actual.Tickers)
+	r.Equal(expected.Ciks, actual.Ciks)
+	r.Equal(expected.Link, actual.Link)
+	r.Equal(expected.Source, actual.Source)
+
+	// Time is tested within a delta of 1 millisecond since rethinkdb has millisecond precision, and Go microsecond
+	r.WithinDuration(expected.PublicationTime, actual.PublicationTime, time.Millisecond)
+	r.WithinDuration(expected.ReceivedTime, actual.ReceivedTime, time.Millisecond)
+	r.WithinDuration(time.Now(), actual.CreationTime, time.Second*10)
+}
