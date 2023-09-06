@@ -185,14 +185,17 @@ func (r *newsRepositorySuite) TestNewsRepository_InsertBatch() {
 	}
 	for _, tt := range tests {
 		r.Run(tt.name, func() {
-			insertArgs := make([]*News, len(tt.insertNews))
+			newsArgs := make([]*News, len(tt.insertNews))
 			for i, news := range tt.insertNews {
 				v := *news
-				insertArgs[i] = &v
+				newsArgs[i] = &v
 			}
-			err := r.newsRepository.InsertBatch(insertArgs, func(int, int) {})
+			err := r.newsRepository.InsertBatch(newsArgs, func(int, int) {})
 			if !r.NoError(err) {
 				r.FailNow("")
+			}
+			for _, newsArg := range newsArgs {
+				r.NotEmpty(newsArg.Id)
 			}
 
 			_, err = r.newsRepository.typedClient.Indices.Refresh().Do(context.Background())
@@ -270,6 +273,7 @@ func (r *newsRepositorySuite) TestNewsRepository_Insert() {
 			if !r.NoError(err) {
 				r.FailNow("")
 			}
+			r.NotEmpty(insertArgs.Id)
 
 			_, err = r.newsRepository.typedClient.Indices.Refresh().Do(context.Background())
 			if !r.NoError(err) {

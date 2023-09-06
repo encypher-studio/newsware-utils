@@ -101,6 +101,7 @@ func (b *NewsRepository) InsertBatch(news []*News, insertedCallback func(totalIn
 		}
 
 		for i, newsItem := range news[fromIndex:toIndex] {
+			currentIndex := i
 			newsItemBytes, err := json.Marshal(newsItem)
 			if err != nil {
 				return err
@@ -110,7 +111,7 @@ func (b *NewsRepository) InsertBatch(news []*News, insertedCallback func(totalIn
 				Action: "index",
 				Body:   bytes.NewReader(newsItemBytes),
 				OnSuccess: func(ctx context.Context, item esutil.BulkIndexerItem, res esutil.BulkIndexerResponseItem) {
-					news[fromIndex+i].Id = res.DocumentID
+					news[fromIndex+currentIndex].Id = res.DocumentID
 				},
 			})
 			if err != nil {
