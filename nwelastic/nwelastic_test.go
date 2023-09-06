@@ -37,25 +37,24 @@ type newsRepositorySuite struct {
 }
 
 func (r *newsRepositorySuite) SetupSuite() {
-	index = "nwelastic_tests"
-
+	r.newsRepository.Index = "nwelastic_tests"
 	err := r.newsRepository.Init(TestElasticConfig)
 	if err != nil {
 		r.FailNow(err.Error())
 	}
 
-	_, _ = r.newsRepository.typedClient.Indices.Delete(index).Do(nil)
+	_, _ = r.newsRepository.typedClient.Indices.Delete(r.newsRepository.Index).Do(nil)
 }
 
 func (r *newsRepositorySuite) SetupSubTest() {
-	_, err := r.newsRepository.typedClient.Indices.Create(index).Do(nil)
+	_, err := r.newsRepository.typedClient.Indices.Create(r.newsRepository.Index).Do(nil)
 	if err != nil {
 		r.FailNow(err.Error())
 	}
 }
 
 func (r *newsRepositorySuite) TearDownSubTest() {
-	_, err := r.newsRepository.typedClient.Indices.Delete(index).Do(nil)
+	_, err := r.newsRepository.typedClient.Indices.Delete(r.newsRepository.Index).Do(nil)
 	if err != nil {
 		r.FailNow(err.Error())
 	}
@@ -204,7 +203,7 @@ func (r *newsRepositorySuite) TestNewsRepository_InsertBatch() {
 			actualNews := make([]*News, 0)
 			resp, err := r.newsRepository.typedClient.
 				Search().
-				Index(index).
+				Index(r.newsRepository.Index).
 				Request(&search.Request{
 					Query: &types.Query{
 						MatchAll: &types.MatchAllQuery{
@@ -279,7 +278,7 @@ func (r *newsRepositorySuite) TestNewsRepository_Insert() {
 
 			resp, err := r.newsRepository.typedClient.
 				Search().
-				Index(index).
+				Index(r.newsRepository.Index).
 				Request(&search.Request{
 					Query: &types.Query{
 						MatchAll: &types.MatchAllQuery{

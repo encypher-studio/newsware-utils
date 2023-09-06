@@ -16,7 +16,6 @@ import (
 var (
 	// maxQuerySize is set to 90MB, the maximum HTTP request size is 100MB in ElasticSearch
 	maxQuerySize int = 90e6
-	index            = "news"
 )
 
 type Repository interface {
@@ -26,10 +25,15 @@ type Repository interface {
 type NewsRepository struct {
 	client      *elasticsearch.Client
 	typedClient *elasticsearch.TypedClient
+	Index       string
 }
 
 func (b *NewsRepository) Init(config ElasticConfig) error {
-	if flag.Lookup("test.v") != nil && index == "news" {
+	if b.Index == "" {
+		b.Index = "news"
+	}
+
+	if flag.Lookup("test.v") != nil && b.Index == "news" {
 		return errors.New("can't use index 'news' for tests")
 	}
 
@@ -90,7 +94,7 @@ func (b *NewsRepository) InsertBatch(news []*News, insertedCallback func(totalIn
 
 		bulkIndexer, err := esutil.NewBulkIndexer(esutil.BulkIndexerConfig{
 			Client: b.client,
-			Index:  index,
+			Index:  b.Index,
 		})
 		if err != nil {
 			return errors.Wrap(err, "creating elastic bulk indexer")
@@ -102,7 +106,7 @@ func (b *NewsRepository) InsertBatch(news []*News, insertedCallback func(totalIn
 				return err
 			}
 			err = bulkIndexer.Add(context.Background(), esutil.BulkIndexerItem{
-				Index:  index,
+				Index:  b.Index,
 				Action: "index",
 				Body:   bytes.NewReader(newsItemBytes),
 				OnSuccess: func(ctx context.Context, item esutil.BulkIndexerItem, res esutil.BulkIndexerResponseItem) {
@@ -135,7 +139,7 @@ func (b *NewsRepository) Insert(news *News) error {
 		news.Body = ""
 	}
 
-	res, err := b.typedClient.Index(index).Request(news).Do(context.Background())
+	res, err := b.typedClient.Index(b.Index).Request(news).Do(context.Background())
 	if err != nil {
 		return errors.Wrap(err, "failed to insert news")
 	}
