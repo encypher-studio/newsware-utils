@@ -88,7 +88,8 @@ func (b *NewsRepository) InsertBatch(news []*News, insertedCallback func(totalIn
 		}
 
 		for i, newsItem := range news[fromIndex:toIndex] {
-			newsItem.Id = ids[i]
+			// Assign the highest id to the newest record
+			newsItem.Id = ids[len(ids)-i-1]
 			newsItemBytes, err := json.Marshal(newsItem)
 			if err != nil {
 				return err
