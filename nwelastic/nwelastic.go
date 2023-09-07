@@ -1,55 +1,37 @@
 package nwelastic
 
 import (
-	"bytes"
-	"context"
-	"encoding/json"
-	"flag"
 	"github.com/elastic/elastic-transport-go/v8/elastictransport"
 	"github.com/elastic/go-elasticsearch/v8"
 	"github.com/elastic/go-elasticsearch/v8/esutil"
 	"github.com/pkg/errors"
 	"os"
-	"time"
 )
 
-var (
-	// maxQuerySize is set to 90MB, the maximum HTTP request size is 100MB in ElasticSearch
-	maxQuerySize int = 90e6
-)
-
-type Repository interface {
-	InsertNews(News) error
-}
-
-type NewsRepository struct {
-	client      *elasticsearch.Client
+type Elastic struct {
 	typedClient *elasticsearch.TypedClient
-	Index       string
+	client      *elasticsearch.Client
+	config      ElasticConfig
 }
 
-func (b *NewsRepository) Init(config ElasticConfig) error {
-	if b.Index == "" {
-		b.Index = "news"
+func (e *Elastic) StartClient() error {
+	if e.client != nil {
+		return nil
 	}
 
-	if flag.Lookup("test.v") != nil && b.Index == "news" {
-		return errors.New("can't use index 'news' for tests")
-	}
-
-	cert, err := os.ReadFile(config.CertPath)
+	cert, err := os.ReadFile(e.config.CertPath)
 	if err != nil {
 		return errors.Wrap(err, "reading elastic cert")
 	}
 
 	elasticConfig := elasticsearch.Config{
-		Addresses: config.Addresses,
-		Username:  config.Username,
-		Password:  config.Password,
+		Addresses: e.config.Addresses,
+		Username:  e.config.Username,
+		Password:  e.config.Password,
 		CACert:    cert,
 	}
 
-	if config.LogRequests {
+	if e.config.LogRequests {
 		elasticConfig.Logger = &elastictransport.ColorLogger{
 			Output:             os.Stdout,
 			EnableRequestBody:  true,
@@ -57,12 +39,7 @@ func (b *NewsRepository) Init(config ElasticConfig) error {
 		}
 	}
 
-	b.client, err = elasticsearch.NewClient(elasticConfig)
-	if err != nil {
-		return errors.Wrap(err, "creating elastic client")
-	}
-
-	b.typedClient, err = elasticsearch.NewTypedClient(elasticConfig)
+	e.client, err = elasticsearch.NewClient(elasticConfig)
 	if err != nil {
 		return errors.Wrap(err, "creating elastic client")
 	}
@@ -70,82 +47,50 @@ func (b *NewsRepository) Init(config ElasticConfig) error {
 	return nil
 }
 
-func (b *NewsRepository) InsertBatch(news []*News, insertedCallback func(totalIndexed int, lastIndex int)) error {
-	shouldBreak := false
-	fromIndex := 0
+func (e *Elastic) StartTypedClient() error {
+	if e.typedClient != nil {
+		return nil
+	}
 
-	for !shouldBreak {
-		toIndex := fromIndex
-		bodySizes := 0
-		creationTime := time.Now()
+	cert, err := os.ReadFile(e.config.CertPath)
+	if err != nil {
+		return errors.Wrap(err, "reading elastic cert")
+	}
 
-		for _, newsItem := range news[fromIndex:] {
-			toIndex += 1
-			newsItem.CreationTime = creationTime
-			if len(newsItem.Body) > maxQuerySize {
-				newsItem.Body = ""
-			}
+	elasticConfig := elasticsearch.Config{
+		Addresses: e.config.Addresses,
+		Username:  e.config.Username,
+		Password:  e.config.Password,
+		CACert:    cert,
+	}
 
-			bodySizes += len(newsItem.Body)
-			if bodySizes >= maxQuerySize {
-				break
-			}
+	if e.config.LogRequests {
+		elasticConfig.Logger = &elastictransport.ColorLogger{
+			Output:             os.Stdout,
+			EnableRequestBody:  true,
+			EnableResponseBody: true,
 		}
+	}
 
-		bulkIndexer, err := esutil.NewBulkIndexer(esutil.BulkIndexerConfig{
-			Client: b.client,
-			Index:  b.Index,
-		})
-		if err != nil {
-			return errors.Wrap(err, "creating elastic bulk indexer")
-		}
-
-		for i, newsItem := range news[fromIndex:toIndex] {
-			currentIndex := i
-			newsItemBytes, err := json.Marshal(newsItem)
-			if err != nil {
-				return err
-			}
-			err = bulkIndexer.Add(context.Background(), esutil.BulkIndexerItem{
-				Index:  b.Index,
-				Action: "index",
-				Body:   bytes.NewReader(newsItemBytes),
-				OnSuccess: func(ctx context.Context, item esutil.BulkIndexerItem, res esutil.BulkIndexerResponseItem) {
-					news[fromIndex+currentIndex].Id = res.DocumentID
-				},
-			})
-			if err != nil {
-				return err
-			}
-		}
-
-		if err := bulkIndexer.Close(context.Background()); err != nil {
-			return err
-		}
-
-		insertedCallback(toIndex-fromIndex, toIndex-1)
-
-		fromIndex = toIndex
-		if fromIndex >= len(news) {
-			shouldBreak = true
-		}
+	e.typedClient, err = elasticsearch.NewTypedClient(elasticConfig)
+	if err != nil {
+		return errors.Wrap(err, "creating elastic client")
 	}
 
 	return nil
 }
 
-func (b *NewsRepository) Insert(news *News) error {
-	news.CreationTime = time.Now()
-	if len(news.Body) > maxQuerySize {
-		news.Body = ""
+func (e *Elastic) BulkIndexer(index string) (esutil.BulkIndexer, error) {
+	if e.client == nil {
+		return nil, errors.New("call StartClient() before calling BulkIndexer()")
 	}
-
-	res, err := b.typedClient.Index(b.Index).Request(news).Do(context.Background())
+	bulkIndexer, err := esutil.NewBulkIndexer(esutil.BulkIndexerConfig{
+		Client: e.client,
+		Index:  index,
+	})
 	if err != nil {
-		return errors.Wrap(err, "failed to insert news")
+		return nil, errors.Wrap(err, "creating elastic bulk indexer")
 	}
 
-	news.Id = res.Id_
-
-	return nil
+	return bulkIndexer, nil
 }

@@ -21,15 +21,14 @@ var (
 )
 
 type publicationTimeSort struct {
-	PublicationTime sort `json:"publicationTime"`
+	PublicationTime sortOrder `json:"publicationTime"`
 }
 
-type sort struct {
+type sortOrder struct {
 	Order string `json:"order"`
 }
 
-// newsRepositorySuite performs integration tests on database {config.RethinkDb.Database}_integration_test. Database must not exist
-// beforehand.
+// newsRepositorySuite performs integration tests, they are run unless the test -short flag is set
 type newsRepositorySuite struct {
 	suite.Suite
 	config         ElasticConfig
@@ -38,23 +37,33 @@ type newsRepositorySuite struct {
 
 func (r *newsRepositorySuite) SetupSuite() {
 	r.newsRepository.Index = "nwelastic_tests"
-	err := r.newsRepository.Init(TestElasticConfig)
+	err := r.newsRepository.Init(&Elastic{config: TestElasticConfig})
 	if err != nil {
 		r.FailNow(err.Error())
 	}
 
-	_, _ = r.newsRepository.typedClient.Indices.Delete(r.newsRepository.Index).Do(nil)
+	_, _ = r.newsRepository.elastic.typedClient.Indices.Delete(r.newsRepository.Index).Do(nil)
+	_, _ = r.newsRepository.elastic.typedClient.Indices.Delete("sequence").Do(nil)
 }
 
 func (r *newsRepositorySuite) SetupSubTest() {
-	_, err := r.newsRepository.typedClient.Indices.Create(r.newsRepository.Index).Do(nil)
+	_, err := r.newsRepository.elastic.typedClient.Indices.Create(r.newsRepository.Index).Do(nil)
+	if err != nil {
+		r.FailNow(err.Error())
+	}
+	_, err = r.newsRepository.elastic.typedClient.Indices.Create("sequence").Do(nil)
 	if err != nil {
 		r.FailNow(err.Error())
 	}
 }
 
 func (r *newsRepositorySuite) TearDownSubTest() {
-	_, err := r.newsRepository.typedClient.Indices.Delete(r.newsRepository.Index).Do(nil)
+	_, err := r.newsRepository.elastic.typedClient.Indices.Delete(r.newsRepository.Index).Do(nil)
+	if err != nil {
+		r.FailNow(err.Error())
+	}
+
+	_, err = r.newsRepository.elastic.typedClient.Indices.Delete("sequence").Do(nil)
 	if err != nil {
 		r.FailNow(err.Error())
 	}
@@ -128,12 +137,14 @@ func (r *newsRepositorySuite) TestNewsRepository_InsertBatch() {
 			},
 			[]*News{
 				{
+					Id:              1,
 					Headline:        "1",
 					Body:            "",
 					PublicationTime: defaultTime.Add(time.Minute),
 					ReceivedTime:    defaultTime.Add(time.Minute),
 				},
 				{
+					Id:              2,
 					Headline:        "2",
 					Body:            "",
 					PublicationTime: defaultTime,
@@ -185,26 +196,18 @@ func (r *newsRepositorySuite) TestNewsRepository_InsertBatch() {
 	}
 	for _, tt := range tests {
 		r.Run(tt.name, func() {
-			newsArgs := make([]*News, len(tt.insertNews))
-			for i, news := range tt.insertNews {
-				v := *news
-				newsArgs[i] = &v
-			}
-			err := r.newsRepository.InsertBatch(newsArgs, func(int, int) {})
+			err := r.newsRepository.InsertBatch(tt.insertNews, func(int, int) {})
 			if !r.NoError(err) {
 				r.FailNow("")
 			}
-			for _, newsArg := range newsArgs {
-				r.NotEmpty(newsArg.Id)
-			}
 
-			_, err = r.newsRepository.typedClient.Indices.Refresh().Do(context.Background())
+			_, err = r.newsRepository.elastic.typedClient.Indices.Refresh().Do(context.Background())
 			if !r.NoError(err) {
 				r.FailNow("")
 			}
 
 			actualNews := make([]*News, 0)
-			resp, err := r.newsRepository.typedClient.
+			resp, err := r.newsRepository.elastic.typedClient.
 				Search().
 				Index(r.newsRepository.Index).
 				Request(&search.Request{
@@ -213,7 +216,7 @@ func (r *newsRepositorySuite) TestNewsRepository_InsertBatch() {
 							Boost: float32Ptr(1.2),
 						},
 					},
-					Sort: []types.SortCombinations{publicationTimeSort{sort{Order: "desc"}}},
+					Sort: []types.SortCombinations{publicationTimeSort{sortOrder{Order: "desc"}}},
 				}).
 				Do(context.Background())
 			r.NoError(err)
@@ -265,22 +268,27 @@ func (r *newsRepositorySuite) TestNewsRepository_Insert() {
 			},
 			nil,
 		},
+		{
+			"should set id",
+			&News{},
+			&News{
+				Id: 1,
+			},
+		},
 	}
 	for _, tt := range tests {
 		r.Run(tt.name, func() {
-			insertArgs := *tt.news
-			err := r.newsRepository.Insert(&insertArgs)
-			if !r.NoError(err) {
-				r.FailNow("")
-			}
-			r.NotEmpty(insertArgs.Id)
-
-			_, err = r.newsRepository.typedClient.Indices.Refresh().Do(context.Background())
+			err := r.newsRepository.Insert(tt.news)
 			if !r.NoError(err) {
 				r.FailNow("")
 			}
 
-			resp, err := r.newsRepository.typedClient.
+			_, err = r.newsRepository.elastic.typedClient.Indices.Refresh().Do(context.Background())
+			if !r.NoError(err) {
+				r.FailNow("")
+			}
+
+			resp, err := r.newsRepository.elastic.typedClient.
 				Search().
 				Index(r.newsRepository.Index).
 				Request(&search.Request{
@@ -289,7 +297,7 @@ func (r *newsRepositorySuite) TestNewsRepository_Insert() {
 							Boost: float32Ptr(1.2),
 						},
 					},
-					Sort: []types.SortCombinations{publicationTimeSort{sort{Order: "desc"}}},
+					Sort: []types.SortCombinations{publicationTimeSort{sortOrder{Order: "desc"}}},
 				}).
 				Do(context.Background())
 			r.NoError(err)
@@ -334,6 +342,7 @@ func generateBody(size int) string {
 func float32Ptr(v float32) *float32 { return &v }
 
 func (r *newsRepositorySuite) assertNewsEqual(expected *News, actual *News) {
+	r.Equal(expected.Id, actual.Id)
 	r.Equal(expected.Headline, actual.Headline)
 	r.Equal(expected.Body, actual.Body)
 	r.Equal(expected.Tickers, actual.Tickers)
