@@ -67,7 +67,7 @@ func (b *NewsRepository) InsertBatch(news []*News, insertedCallback func(totalIn
 			}
 		}
 
-		bulkIndexer, err := b.elastic.BulkIndexer(b.Index)
+		bulkIndexer, err := b.elastic.bulkIndexer(b.Index)
 		if err != nil {
 			return err
 		}

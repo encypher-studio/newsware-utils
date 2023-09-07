@@ -4,6 +4,7 @@ import (
 	"github.com/elastic/elastic-transport-go/v8/elastictransport"
 	"github.com/elastic/go-elasticsearch/v8"
 	"github.com/elastic/go-elasticsearch/v8/esutil"
+	"github.com/elastic/go-elasticsearch/v8/typedapi/core/search"
 	"github.com/pkg/errors"
 	"os"
 )
@@ -80,9 +81,9 @@ func (e *Elastic) StartTypedClient() error {
 	return nil
 }
 
-func (e *Elastic) BulkIndexer(index string) (esutil.BulkIndexer, error) {
+func (e *Elastic) bulkIndexer(index string) (esutil.BulkIndexer, error) {
 	if e.client == nil {
-		return nil, errors.New("call StartClient() before calling BulkIndexer()")
+		return nil, errors.New("call StartClient() before calling bulkIndexer()")
 	}
 	bulkIndexer, err := esutil.NewBulkIndexer(esutil.BulkIndexerConfig{
 		Client: e.client,
@@ -93,4 +94,8 @@ func (e *Elastic) BulkIndexer(index string) (esutil.BulkIndexer, error) {
 	}
 
 	return bulkIndexer, nil
+}
+
+func (e *Elastic) Search() *search.Search {
+	return e.typedClient.Search()
 }

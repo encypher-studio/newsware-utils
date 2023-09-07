@@ -30,7 +30,7 @@ func (s *Sequence) Init(elastic *Elastic, index string) error {
 
 // GenerateUniqueIds requests unique ids to the "sequence" index, the ids are generated for s.index
 func (s *Sequence) GenerateUniqueIds(amount int) ([]int64, error) {
-	bulkIndexer, err := s.elastic.BulkIndexer(s.index)
+	bulkIndexer, err := s.elastic.bulkIndexer(s.index)
 	if err != nil {
 		return nil, err
 	}
