@@ -7,6 +7,7 @@ import (
 	"flag"
 	"github.com/elastic/go-elasticsearch/v8/esutil"
 	"github.com/pkg/errors"
+	"strconv"
 	"time"
 )
 
@@ -93,9 +94,10 @@ func (b *NewsRepository) InsertBatch(news []*News, insertedCallback func(totalIn
 				return err
 			}
 			err = bulkIndexer.Add(context.Background(), esutil.BulkIndexerItem{
-				Index:  b.Index,
-				Action: "index",
-				Body:   bytes.NewReader(newsItemBytes),
+				Index:      b.Index,
+				DocumentID: strconv.FormatInt(newsItem.Id, 10),
+				Action:     "index",
+				Body:       bytes.NewReader(newsItemBytes),
 			})
 			if err != nil {
 				return err
@@ -129,7 +131,7 @@ func (b *NewsRepository) Insert(news *News) error {
 	}
 	news.Id = ids[0]
 
-	_, err = b.elastic.typedClient.Index(b.Index).Request(news).Do(context.Background())
+	_, err = b.elastic.typedClient.Index(b.Index).Request(news).Id(strconv.FormatInt(news.Id, 10)).Do(context.Background())
 	if err != nil {
 		return errors.Wrap(err, "failed to insert news")
 	}

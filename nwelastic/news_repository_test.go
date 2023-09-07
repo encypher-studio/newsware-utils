@@ -6,6 +6,7 @@ import (
 	"github.com/elastic/go-elasticsearch/v8/typedapi/core/search"
 	"github.com/elastic/go-elasticsearch/v8/typedapi/types"
 	"github.com/stretchr/testify/suite"
+	"strconv"
 	"testing"
 	"time"
 )
@@ -239,6 +240,7 @@ func (r *newsRepositorySuite) TestNewsRepository_InsertBatch() {
 				r.FailNow("expected and actuals news lengths don't match")
 			}
 			for i, actualNewsItem := range actualNews {
+				r.Equal(strconv.FormatInt(tt.expectedNews[i].Id, 10), resp.Hits.Hits[i].Id_, "wrong document _id")
 				r.assertNewsEqual(tt.expectedNews[i], actualNewsItem)
 			}
 		})
@@ -316,6 +318,8 @@ func (r *newsRepositorySuite) TestNewsRepository_Insert() {
 			if tt.expectedNews == nil {
 				tt.expectedNews = tt.news
 			}
+
+			r.Equal(strconv.FormatInt(tt.expectedNews.Id, 10), resp.Hits.Hits[0].Id_, "wrong document _id")
 
 			r.assertNewsEqual(tt.expectedNews, actualNews)
 		})
