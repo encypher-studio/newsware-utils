@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"context"
 	"encoding/json"
+	"flag"
 	"github.com/elastic/go-elasticsearch/v8/esutil"
 	"github.com/pkg/errors"
 	"time"
@@ -20,11 +21,19 @@ type Repository interface {
 
 type NewsRepository struct {
 	elastic  *Elastic
-	Index    string
+	Index    string // Defaults to "news"
 	sequence Sequence
 }
 
 func (b *NewsRepository) Init(elastic *Elastic) error {
+	if b.Index == "" {
+		b.Index = "news"
+	}
+
+	if flag.Lookup("test.v") != nil && b.Index == "news" {
+		return errors.New("can't use index 'news' for tests")
+	}
+
 	b.elastic = elastic
 
 	err := b.elastic.StartClient()
