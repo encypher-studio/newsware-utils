@@ -37,7 +37,7 @@ type newsRepositorySuite struct {
 
 func (r *newsRepositorySuite) SetupSuite() {
 	r.newsRepository.Index = "nwelastic_tests"
-	err := r.newsRepository.Init(&Elastic{config: TestElasticConfig})
+	err := r.newsRepository.Init(&Elastic{Config: TestElasticConfig})
 	if err != nil {
 		r.FailNow(err.Error())
 	}

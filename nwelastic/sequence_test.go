@@ -13,7 +13,7 @@ type sequenceSuite struct {
 }
 
 func (s *sequenceSuite) SetupSuite() {
-	err := s.sequence.Init(&Elastic{config: TestElasticConfig}, "index_to_sequence")
+	err := s.sequence.Init(&Elastic{Config: TestElasticConfig}, "index_to_sequence")
 	if err != nil {
 		s.FailNow(err.Error())
 	}

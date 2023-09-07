@@ -9,9 +9,9 @@ import (
 )
 
 type Elastic struct {
+	Config      ElasticConfig
 	typedClient *elasticsearch.TypedClient
 	client      *elasticsearch.Client
-	config      ElasticConfig
 }
 
 func (e *Elastic) StartClient() error {
@@ -19,19 +19,19 @@ func (e *Elastic) StartClient() error {
 		return nil
 	}
 
-	cert, err := os.ReadFile(e.config.CertPath)
+	cert, err := os.ReadFile(e.Config.CertPath)
 	if err != nil {
 		return errors.Wrap(err, "reading elastic cert")
 	}
 
 	elasticConfig := elasticsearch.Config{
-		Addresses: e.config.Addresses,
-		Username:  e.config.Username,
-		Password:  e.config.Password,
+		Addresses: e.Config.Addresses,
+		Username:  e.Config.Username,
+		Password:  e.Config.Password,
 		CACert:    cert,
 	}
 
-	if e.config.LogRequests {
+	if e.Config.LogRequests {
 		elasticConfig.Logger = &elastictransport.ColorLogger{
 			Output:             os.Stdout,
 			EnableRequestBody:  true,
@@ -52,19 +52,19 @@ func (e *Elastic) StartTypedClient() error {
 		return nil
 	}
 
-	cert, err := os.ReadFile(e.config.CertPath)
+	cert, err := os.ReadFile(e.Config.CertPath)
 	if err != nil {
 		return errors.Wrap(err, "reading elastic cert")
 	}
 
 	elasticConfig := elasticsearch.Config{
-		Addresses: e.config.Addresses,
-		Username:  e.config.Username,
-		Password:  e.config.Password,
+		Addresses: e.Config.Addresses,
+		Username:  e.Config.Username,
+		Password:  e.Config.Password,
 		CACert:    cert,
 	}
 
-	if e.config.LogRequests {
+	if e.Config.LogRequests {
 		elasticConfig.Logger = &elastictransport.ColorLogger{
 			Output:             os.Stdout,
 			EnableRequestBody:  true,
