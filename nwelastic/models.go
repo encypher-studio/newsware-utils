@@ -6,7 +6,7 @@ import (
 
 // News describes a document that can be inserted to rethinkdb. Each field is commented with the sources it applies to.
 type News struct {
-	Id              string    `json:"id,omitempty"`
+	Id              int64     `json:"id,omitempty"`
 	Headline        string    `json:"headline"`
 	Body            string    `json:"body,omitempty"`
 	Tickers         []string  `json:"tickers,omitempty"`
