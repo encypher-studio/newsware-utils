@@ -3,7 +3,10 @@ package nwelastic
 import (
 	"bytes"
 	"context"
+	"github.com/elastic/go-elasticsearch/v8/esapi"
 	"github.com/elastic/go-elasticsearch/v8/esutil"
+	"github.com/elastic/go-elasticsearch/v8/typedapi/core/search"
+	"github.com/elastic/go-elasticsearch/v8/typedapi/types"
 	"sort"
 	"sync"
 )
@@ -21,6 +24,11 @@ func (s *Sequence) Init(elastic *Elastic, index string) error {
 	s.elastic = elastic
 
 	err := s.elastic.StartClient()
+	if err != nil {
+		return err
+	}
+
+	err = s.elastic.StartTypedClient()
 	if err != nil {
 		return err
 	}
@@ -63,4 +71,25 @@ func (s *Sequence) GenerateUniqueIds(amount int) ([]int64, error) {
 	})
 
 	return ids, nil
+}
+
+func (s *Sequence) GetLastId() (int64, error) {
+	boost := float32(1.45)
+	resp, err := s.elastic.Search().Index("sequence").Request(&search.Request{
+		Query: &types.Query{
+			MatchAll: &types.MatchAllQuery{
+				Boost: &boost,
+			},
+		},
+		Version: esapi.BoolPtr(true),
+	}).Do(context.Background())
+	if err != nil {
+		return 0, err
+	}
+
+	if len(resp.Hits.Hits) == 0 {
+		return 0, nil
+	}
+
+	return *resp.Hits.Hits[0].Version_, nil
 }

@@ -1,6 +1,7 @@
 package nwelastic
 
 import (
+	"context"
 	"github.com/stretchr/testify/suite"
 	"testing"
 )
@@ -26,14 +27,14 @@ func (s *sequenceSuite) SetupSuite() {
 	_, _ = s.sequence.elastic.typedClient.Indices.Delete("sequence").Do(nil)
 }
 
-func (s *sequenceSuite) SetupSubTest() {
+func (s *sequenceSuite) BeforeTest(_, _ string) {
 	_, err := s.sequence.elastic.typedClient.Indices.Create("sequence").Do(nil)
 	if err != nil {
 		s.FailNow(err.Error())
 	}
 }
 
-func (s *sequenceSuite) TearDownSubTest() {
+func (s *sequenceSuite) AfterTest(_, _ string) {
 	_, err := s.sequence.elastic.typedClient.Indices.Delete("sequence").Do(nil)
 	if err != nil {
 		s.FailNow(err.Error())
@@ -64,6 +65,43 @@ func (s *sequenceSuite) TestSequence_GenerateUniqueIds() {
 			s.FailNow("returned ids are not as expected")
 		}
 	}
+}
+
+func (s *sequenceSuite) TestSequence_GetLastId() {
+	_, err := s.sequence.GenerateUniqueIds(100)
+	if err != nil {
+		s.FailNow(err.Error())
+	}
+
+	_, err = s.sequence.elastic.typedClient.Indices.Refresh().Index("sequence").Do(context.Background())
+	if err != nil {
+		s.FailNow(err.Error())
+	}
+
+	lastId, err := s.sequence.GetLastId()
+	if err != nil {
+		s.FailNow(err.Error())
+	}
+
+	s.Equal(int64(100), lastId)
+
+	_, err = s.sequence.GenerateUniqueIds(500)
+	if err != nil {
+		s.FailNow(err.Error())
+	}
+
+	_, err = s.sequence.elastic.typedClient.Indices.Refresh().Index("sequence").Do(context.Background())
+	if err != nil {
+		s.FailNow(err.Error())
+	}
+
+	lastId, err = s.sequence.GetLastId()
+	if err != nil {
+		s.FailNow(err.Error())
+	}
+
+	s.Equal(int64(600), lastId)
+
 }
 
 func TestSequenceSuite(t *testing.T) {
