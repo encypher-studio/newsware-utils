@@ -23,6 +23,6 @@ func TestElastic_StartTypedClient_failPing(t *testing.T) {
 		Config: conf,
 	}
 
-	err := e.StartClient()
+	err := e.StartTypedClient()
 	assert.Contains(t, err.Error(), ErrFailedToPingElastic.Error())
 }

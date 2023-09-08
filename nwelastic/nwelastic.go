@@ -2,11 +2,13 @@ package nwelastic
 
 import (
 	"context"
+	"crypto/tls"
 	"github.com/elastic/elastic-transport-go/v8/elastictransport"
 	"github.com/elastic/go-elasticsearch/v8"
 	"github.com/elastic/go-elasticsearch/v8/esutil"
 	"github.com/elastic/go-elasticsearch/v8/typedapi/core/search"
 	"github.com/pkg/errors"
+	"net/http"
 	"os"
 )
 
@@ -20,21 +22,21 @@ type Elastic struct {
 	client      *elasticsearch.Client
 }
 
-func (e *Elastic) StartClient() error {
+func (e *Elastic) StartClient() (err error) {
 	if e.client != nil {
 		return nil
 	}
 
-	cert, err := os.ReadFile(e.Config.CertPath)
-	if err != nil {
-		return errors.Wrap(err, "reading elastic cert")
+	elasticTransport := http.DefaultTransport.(*http.Transport)
+	elasticTransport.TLSClientConfig = &tls.Config{
+		InsecureSkipVerify: true,
 	}
 
 	elasticConfig := elasticsearch.Config{
 		Addresses: e.Config.Addresses,
 		Username:  e.Config.Username,
 		Password:  e.Config.Password,
-		CACert:    cert,
+		Transport: elasticTransport,
 	}
 
 	if e.Config.LogRequests {
