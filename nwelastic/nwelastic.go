@@ -27,27 +27,7 @@ func (e *Elastic) StartClient() (err error) {
 		return nil
 	}
 
-	elasticTransport := http.DefaultTransport.(*http.Transport)
-	elasticTransport.TLSClientConfig = &tls.Config{
-		InsecureSkipVerify: true,
-	}
-
-	elasticConfig := elasticsearch.Config{
-		Addresses: e.Config.Addresses,
-		Username:  e.Config.Username,
-		Password:  e.Config.Password,
-		Transport: elasticTransport,
-	}
-
-	if e.Config.LogRequests {
-		elasticConfig.Logger = &elastictransport.ColorLogger{
-			Output:             os.Stdout,
-			EnableRequestBody:  true,
-			EnableResponseBody: true,
-		}
-	}
-
-	e.client, err = elasticsearch.NewClient(elasticConfig)
+	e.client, err = elasticsearch.NewClient(e.elasticClientConfig())
 	if err != nil {
 		return errors.Wrap(err, "creating elastic client")
 	}
@@ -64,32 +44,12 @@ func (e *Elastic) StartClient() (err error) {
 	return nil
 }
 
-func (e *Elastic) StartTypedClient() error {
+func (e *Elastic) StartTypedClient() (err error) {
 	if e.typedClient != nil {
 		return nil
 	}
 
-	cert, err := os.ReadFile(e.Config.CertPath)
-	if err != nil {
-		return errors.Wrap(err, "reading elastic cert")
-	}
-
-	elasticConfig := elasticsearch.Config{
-		Addresses: e.Config.Addresses,
-		Username:  e.Config.Username,
-		Password:  e.Config.Password,
-		CACert:    cert,
-	}
-
-	if e.Config.LogRequests {
-		elasticConfig.Logger = &elastictransport.ColorLogger{
-			Output:             os.Stdout,
-			EnableRequestBody:  true,
-			EnableResponseBody: true,
-		}
-	}
-
-	e.typedClient, err = elasticsearch.NewTypedClient(elasticConfig)
+	e.typedClient, err = elasticsearch.NewTypedClient(e.elasticClientConfig())
 	if err != nil {
 		return errors.Wrap(err, "creating elastic client")
 	}
@@ -123,4 +83,28 @@ func (e *Elastic) bulkIndexer(index string) (esutil.BulkIndexer, error) {
 
 func (e *Elastic) Search() *search.Search {
 	return e.typedClient.Search()
+}
+
+func (e *Elastic) elasticClientConfig() elasticsearch.Config {
+	elasticTransport := http.DefaultTransport.(*http.Transport)
+	elasticTransport.TLSClientConfig = &tls.Config{
+		InsecureSkipVerify: true,
+	}
+
+	elasticConfig := elasticsearch.Config{
+		Addresses: e.Config.Addresses,
+		Username:  e.Config.Username,
+		Password:  e.Config.Password,
+		Transport: elasticTransport,
+	}
+
+	if e.Config.LogRequests {
+		elasticConfig.Logger = &elastictransport.ColorLogger{
+			Output:             os.Stdout,
+			EnableRequestBody:  true,
+			EnableResponseBody: true,
+		}
+	}
+
+	return elasticConfig
 }

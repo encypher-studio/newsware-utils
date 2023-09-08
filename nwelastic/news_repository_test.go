@@ -16,7 +16,6 @@ var (
 		Addresses:   []string{"https://localhost:9200"},
 		Username:    "elastic",
 		Password:    "changeme",
-		CertPath:    "./ca.crt",
 		LogRequests: false,
 	}
 )
