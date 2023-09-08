@@ -1,12 +1,17 @@
 package nwelastic
 
 import (
+	"context"
 	"github.com/elastic/elastic-transport-go/v8/elastictransport"
 	"github.com/elastic/go-elasticsearch/v8"
 	"github.com/elastic/go-elasticsearch/v8/esutil"
 	"github.com/elastic/go-elasticsearch/v8/typedapi/core/search"
 	"github.com/pkg/errors"
 	"os"
+)
+
+var (
+	ErrFailedToPingElastic = errors.New("failed to ping elastic cluster")
 )
 
 type Elastic struct {
@@ -45,6 +50,15 @@ func (e *Elastic) StartClient() error {
 		return errors.Wrap(err, "creating elastic client")
 	}
 
+	res, err := e.client.Ping()
+	if err != nil {
+		return errors.Wrap(err, ErrFailedToPingElastic.Error())
+	}
+
+	if res.IsError() {
+		return ErrFailedToPingElastic
+	}
+
 	return nil
 }
 
@@ -76,6 +90,15 @@ func (e *Elastic) StartTypedClient() error {
 	e.typedClient, err = elasticsearch.NewTypedClient(elasticConfig)
 	if err != nil {
 		return errors.Wrap(err, "creating elastic client")
+	}
+
+	ok, err := e.typedClient.Ping().Do(context.Background())
+	if err != nil {
+		return errors.Wrap(err, ErrFailedToPingElastic.Error())
+	}
+
+	if !ok {
+		return ErrFailedToPingElastic
 	}
 
 	return nil

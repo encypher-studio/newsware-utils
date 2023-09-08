@@ -7,6 +7,7 @@ import (
 	"github.com/elastic/go-elasticsearch/v8/esutil"
 	"github.com/elastic/go-elasticsearch/v8/typedapi/core/search"
 	"github.com/elastic/go-elasticsearch/v8/typedapi/types"
+	"github.com/pkg/errors"
 	"sort"
 	"sync"
 )
@@ -43,8 +44,10 @@ func (s *Sequence) GenerateUniqueIds(amount int) ([]int64, error) {
 		return nil, err
 	}
 
+	var failures []error
 	var ids []int64
 	muIds := &sync.Mutex{}
+	muFailures := &sync.Mutex{}
 	for i := 0; i < amount; i++ {
 		err = bulkIndexer.Add(context.Background(), esutil.BulkIndexerItem{
 			Index:      "sequence",
@@ -56,6 +59,11 @@ func (s *Sequence) GenerateUniqueIds(amount int) ([]int64, error) {
 				defer muIds.Unlock()
 				ids = append(ids, res.Version)
 			},
+			OnFailure: func(_ context.Context, _ esutil.BulkIndexerItem, _ esutil.BulkIndexerResponseItem, err error) {
+				muFailures.Lock()
+				defer muFailures.Unlock()
+				failures = append(failures, err)
+			},
 		})
 		if err != nil {
 			return nil, err
@@ -64,6 +72,10 @@ func (s *Sequence) GenerateUniqueIds(amount int) ([]int64, error) {
 
 	if err = bulkIndexer.Close(context.Background()); err != nil {
 		return nil, err
+	}
+
+	if len(failures) > 0 {
+		return nil, errors.Wrap(failures[0], "failed to insert ids")
 	}
 
 	sort.Slice(ids, func(i, j int) bool {
