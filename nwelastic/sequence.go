@@ -15,8 +15,9 @@ import (
 // Sequence helps retrieve unique and sequential ids from ElasticSearch using the method:
 // https://blogs.perl.org/users/clinton_gormley/2011/10/elasticsearchsequence---a-blazing-fast-ticket-server.html
 type Sequence struct {
-	elastic *Elastic
-	index   string
+	elastic       *Elastic
+	sequenceIndex string
+	index         string
 }
 
 // Init initializes Sequence. The index argument is the index for which a sequence will be generated.
@@ -34,10 +35,14 @@ func (s *Sequence) Init(elastic *Elastic, index string) error {
 		return err
 	}
 
+	if s.sequenceIndex == "" {
+		s.sequenceIndex = "sequence"
+	}
+
 	return nil
 }
 
-// GenerateUniqueIds requests unique ids to the "sequence" index, the ids are generated for s.index
+// GenerateUniqueIds requests unique ids to Sequence.sequenceIndex, the ids are generated for s.index
 func (s *Sequence) GenerateUniqueIds(amount int) ([]int64, error) {
 	bulkIndexer, err := s.elastic.bulkIndexer(s.index)
 	if err != nil {
@@ -50,7 +55,7 @@ func (s *Sequence) GenerateUniqueIds(amount int) ([]int64, error) {
 	muFailures := &sync.Mutex{}
 	for i := 0; i < amount; i++ {
 		err = bulkIndexer.Add(context.Background(), esutil.BulkIndexerItem{
-			Index:      "sequence",
+			Index:      s.sequenceIndex,
 			Action:     "index",
 			DocumentID: s.index,
 			Body:       bytes.NewReader([]byte("{}")),
@@ -86,11 +91,12 @@ func (s *Sequence) GenerateUniqueIds(amount int) ([]int64, error) {
 }
 
 func (s *Sequence) GetLastId() (int64, error) {
-	boost := float32(1.45)
-	resp, err := s.elastic.Search().Index("sequence").Request(&search.Request{
+	resp, err := s.elastic.Search().Index(s.sequenceIndex).Request(&search.Request{
 		Query: &types.Query{
-			MatchAll: &types.MatchAllQuery{
-				Boost: &boost,
+			Term: map[string]types.TermQuery{
+				"_id": {
+					Value: s.index,
+				},
 			},
 		},
 		Version: esapi.BoolPtr(true),

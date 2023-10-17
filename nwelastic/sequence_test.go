@@ -14,6 +14,9 @@ type sequenceSuite struct {
 }
 
 func (s *sequenceSuite) SetupSuite() {
+	s.sequence = Sequence{
+		sequenceIndex: "sequence_test",
+	}
 	err := s.sequence.Init(&Elastic{Config: TestElasticConfig}, "index_to_sequence")
 	if err != nil {
 		s.FailNow(err.Error())
@@ -24,18 +27,18 @@ func (s *sequenceSuite) SetupSuite() {
 		s.FailNow(err.Error())
 	}
 
-	_, _ = s.sequence.elastic.typedClient.Indices.Delete("sequence").Do(nil)
+	_, _ = s.sequence.elastic.typedClient.Indices.Delete(s.sequence.sequenceIndex).Do(nil)
 }
 
 func (s *sequenceSuite) BeforeTest(_, _ string) {
-	_, err := s.sequence.elastic.typedClient.Indices.Create("sequence").Do(nil)
+	_, err := s.sequence.elastic.typedClient.Indices.Create(s.sequence.sequenceIndex).Do(nil)
 	if err != nil {
 		s.FailNow(err.Error())
 	}
 }
 
 func (s *sequenceSuite) AfterTest(_, _ string) {
-	_, err := s.sequence.elastic.typedClient.Indices.Delete("sequence").Do(nil)
+	_, err := s.sequence.elastic.typedClient.Indices.Delete(s.sequence.sequenceIndex).Do(nil)
 	if err != nil {
 		s.FailNow(err.Error())
 	}
@@ -73,7 +76,7 @@ func (s *sequenceSuite) TestSequence_GetLastId() {
 		s.FailNow(err.Error())
 	}
 
-	_, err = s.sequence.elastic.typedClient.Indices.Refresh().Index("sequence").Do(context.Background())
+	_, err = s.sequence.elastic.typedClient.Indices.Refresh().Index(s.sequence.sequenceIndex).Do(context.Background())
 	if err != nil {
 		s.FailNow(err.Error())
 	}
@@ -90,7 +93,7 @@ func (s *sequenceSuite) TestSequence_GetLastId() {
 		s.FailNow(err.Error())
 	}
 
-	_, err = s.sequence.elastic.typedClient.Indices.Refresh().Index("sequence").Do(context.Background())
+	_, err = s.sequence.elastic.typedClient.Indices.Refresh().Index(s.sequence.sequenceIndex).Do(context.Background())
 	if err != nil {
 		s.FailNow(err.Error())
 	}
@@ -101,7 +104,6 @@ func (s *sequenceSuite) TestSequence_GetLastId() {
 	}
 
 	s.Equal(int64(600), lastId)
-
 }
 
 func TestSequenceSuite(t *testing.T) {
