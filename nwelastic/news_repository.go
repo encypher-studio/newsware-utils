@@ -47,9 +47,9 @@ func (b *NewsRepository) Init(elastic *Elastic) error {
 		return err
 	}
 
-	b.sequence = Sequence{
-		elastic: elastic,
-		index:   b.Index,
+	err = b.sequence.Init(elastic, b.Index)
+	if err != nil {
+		return err
 	}
 
 	return nil

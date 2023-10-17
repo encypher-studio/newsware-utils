@@ -46,7 +46,7 @@ func TestGet(t *testing.T) {
 			EcsVersion: "1.6.0",
 			Error: logError{
 				Message:    "dummy error",
-				StackTrace: "\ngithub.com/encypher-studio/newsware_index_utils/ecslogger.dummyErrorFunction\n\t/Users/said/Projects/encypher/newsware/newsware_index_utils/ecslogger/ecslogger_test.go:34\ngithub.com/encypher-studio/newsware_index_utils/ecslogger.TestGet\n\t/Users/said/Projects/encypher/newsware/newsware_index_utils/ecslogger/ecslogger_test.go:67\ntesting.tRunner\n\t/usr/local/go/src/testing/testing.go:1446\nruntime.goexit\n\t/usr/local/go/src/runtime/asm_arm64.s:1172",
+				StackTrace: "\ngithub.com/encypher-studio/newsware_index_utils/ecslogger.dummyErrorFunction\n\t/Users/said/Projects/encypher/newsware/newsware_index_utils/ecslogger/ecslogger_test.go:34\ngithub.com/encypher-studio/newsware_index_utils/ecslogger.TestGet\n\t/Users/said/Projects/encypher/newsware/newsware_index_utils/ecslogger/ecslogger_test.go:67\ntesting.tRunner\n\t/opt/homebrew/Cellar/go/1.21.2/libexec/src/testing/testing.go:1595\nruntime.goexit\n\t/opt/homebrew/Cellar/go/1.21.2/libexec/src/runtime/asm_arm64.s:1197",
 			},
 			Service: logService{
 				Id:   "test_id",
