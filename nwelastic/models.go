@@ -14,9 +14,12 @@ type News struct {
 	PublicationTime time.Time `json:"publicationTime"`
 	ReceivedTime    time.Time `json:"receivedTime"`
 	CreationTime    time.Time `json:"creationTime"` // Override by insert function
+	// CategoryCodes represents a code which varies from provider to provider and represents a specific topic such as
+	// acquisitions, mergers, etc.
+	CategoryCodes []string `json:"categoryCodes"`
 
-	// SEC
+	// Ciks only applies to SEC
 	Ciks []int `json:"ciks,omitempty"`
-	// SEC
+	// Link only applies to SEC
 	Link string `json:"link,omitempty"`
 }
