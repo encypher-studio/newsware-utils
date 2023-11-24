@@ -89,6 +89,7 @@ func (r *newsRepositorySuite) TestNewsRepository_InsertBatch() {
 					Ciks:            []int{1, 2, 3},
 					Link:            "link",
 					Source:          "SOURCE",
+					CategoryCodes:   []string{"categoryCode1, categoryCode11"},
 					PublicationTime: defaultTime.Add(time.Minute),
 					ReceivedTime:    defaultTime.Add(time.Minute),
 				},
@@ -99,6 +100,7 @@ func (r *newsRepositorySuite) TestNewsRepository_InsertBatch() {
 					Ciks:            []int{4, 5, 6},
 					Link:            "link2",
 					Source:          "SOURCE",
+					CategoryCodes:   []string{"categoryCode2, categoryCode22"},
 					PublicationTime: defaultTime,
 					ReceivedTime:    defaultTime,
 				},
@@ -265,6 +267,7 @@ func (r *newsRepositorySuite) TestNewsRepository_Insert() {
 				Ciks:            []int{1, 2, 3},
 				Link:            "link",
 				Source:          "SOURCE",
+				CategoryCodes:   []string{"categoryCode1, categoryCode2"},
 				PublicationTime: defaultTime.Add(time.Minute),
 				ReceivedTime:    defaultTime.Add(time.Minute),
 			},
@@ -353,6 +356,7 @@ func (r *newsRepositorySuite) assertNewsEqual(expected *News, actual *News) {
 	r.Equal(expected.Ciks, actual.Ciks)
 	r.Equal(expected.Link, actual.Link)
 	r.Equal(expected.Source, actual.Source)
+	r.Equal(expected.CategoryCodes, actual.CategoryCodes)
 
 	// Time is tested within a delta of 1 millisecond since rethinkdb has millisecond precision, and Go microsecond
 	r.WithinDuration(expected.PublicationTime, actual.PublicationTime, time.Millisecond)
