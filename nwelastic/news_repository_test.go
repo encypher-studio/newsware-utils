@@ -140,14 +140,14 @@ func (r *newsRepositorySuite) TestNewsRepository_InsertBatch() {
 			},
 			[]*News{
 				{
-					Id:              2,
+					Id:              1,
 					Headline:        "1",
 					Body:            "",
 					PublicationTime: defaultTime.Add(time.Minute),
 					ReceivedTime:    defaultTime.Add(time.Minute),
 				},
 				{
-					Id:              1,
+					Id:              2,
 					Headline:        "2",
 					Body:            "",
 					PublicationTime: defaultTime,
