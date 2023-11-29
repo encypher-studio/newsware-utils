@@ -60,8 +60,11 @@ func (b *NewsRepository) Init(elastic *Elastic) error {
 // it sends as arguments the total amount of news in the sub-batch and the batch index of the last item in the
 // sub-batch.
 func (b *NewsRepository) InsertBatch(news []*News, insertedCallback func(totalIndexed int, lastIndex int)) error {
-	fromIndex := 0
+	if len(news) == 0 {
+		return nil
+	}
 
+	fromIndex := 0
 	for {
 		toIndex := fromIndex
 		bodySizes := 0
