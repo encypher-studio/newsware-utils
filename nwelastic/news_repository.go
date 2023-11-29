@@ -55,11 +55,14 @@ func (b *NewsRepository) Init(elastic *Elastic) error {
 	return nil
 }
 
+// InsertBatch inserts a batch of news, if the batch is too big, it is uploaded in sub-batches.
+// news must be ordered from [oldest... newest]. The insertedCallback is called after a sub-batch is inserted
+// it sends as arguments the total amount of news in the sub-batch and the batch index of the last item in the
+// sub-batch.
 func (b *NewsRepository) InsertBatch(news []*News, insertedCallback func(totalIndexed int, lastIndex int)) error {
-	shouldBreak := false
 	fromIndex := 0
 
-	for !shouldBreak {
+	for {
 		toIndex := fromIndex
 		bodySizes := 0
 		creationTime := time.Now()
@@ -89,7 +92,7 @@ func (b *NewsRepository) InsertBatch(news []*News, insertedCallback func(totalIn
 
 		for i, newsItem := range news[fromIndex:toIndex] {
 			// Assign the highest id to the newest record
-			newsItem.Id = ids[len(ids)-i-1]
+			newsItem.Id = ids[i]
 			newsItemBytes, err := json.Marshal(newsItem)
 			if err != nil {
 				return err
@@ -111,10 +114,10 @@ func (b *NewsRepository) InsertBatch(news []*News, insertedCallback func(totalIn
 
 		insertedCallback(toIndex-fromIndex, toIndex-1)
 
-		fromIndex = toIndex
-		if fromIndex >= len(news) {
-			shouldBreak = true
+		if toIndex >= len(news) {
+			break
 		}
+		fromIndex = toIndex
 	}
 
 	return nil
