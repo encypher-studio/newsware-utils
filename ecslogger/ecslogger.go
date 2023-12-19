@@ -6,7 +6,6 @@ import (
 	"go.uber.org/zap/zapcore"
 	"gopkg.in/natefinch/lumberjack.v2"
 	"os"
-	"path/filepath"
 )
 
 var (
@@ -19,6 +18,14 @@ var (
 	}
 )
 
+type ILogger interface {
+	Fatal(msg string, err error, fields ...zap.Field)
+	Error(msg string, err error, fields ...zap.Field)
+	Info(msg string, fields ...zap.Field)
+	Log(level zapcore.Level, msg string, fields ...zap.Field)
+	Println(args ...interface{})
+}
+
 // Logger logs to a file following ElasticSearch ECS standard. It is compatible with pkg/errors and eris
 // error libraries. It can also print to console depending on the values passed to Init
 type Logger struct {
@@ -26,55 +33,16 @@ type Logger struct {
 	service ecsService
 }
 
-// Init sets up Logger.
+// NewLogger returns a configured Logger.
 //
 // serviceId must distinctly identify the service that is using the logger. If the service runs
 // in multiple nodes, the serviceId should be the same for all. For example an indexer for SEC filings running on 10
 // nodes, can have "indexer_sec" as id across all instances.
 //
 // serviceName is just a readable name for the service that will be added to logs.
-func (l *Logger) Init(serviceId string, serviceName string, level zapcore.Level, logPath string, logToConsole bool) (err error) {
-	l.logger, err = get(level, logPath, logToConsole)
-	if err != nil {
-		return err
-	}
-	l.service = ecsService{
-		id:   serviceId,
-		name: serviceName,
-	}
-	return nil
-}
-
-func (l *Logger) Fatal(msg string, err error, fields ...zap.Field) {
-	fields = append(fields, zap.Error(err))
-	l.Log(zapcore.FatalLevel, msg, fields...)
-}
-
-func (l *Logger) Error(msg string, err error, fields ...zap.Field) {
-	fields = append(fields, zap.Error(err))
-	l.Log(zapcore.ErrorLevel, msg, fields...)
-}
-
-func (l *Logger) Info(msg string, fields ...zap.Field) {
-	l.Log(zapcore.InfoLevel, msg, fields...)
-}
-
-func (l *Logger) Log(level zapcore.Level, msg string, fields ...zap.Field) {
-	fields = append(fields, zapcore.Field{Key: "service",
-		Type:      zapcore.ObjectMarshalerType,
-		Interface: l.service,
-	})
-	l.logger.Log(level, msg, fields...)
-}
-
-func (l *Logger) Println(args ...interface{}) {
-	l.Println(args)
-}
-
-// get returns a new *zap.Logger that outputs logs to logPath. If logPath is empty or logToConsole is true, then it
-// logs to console. The logs are stored to file following ElasticSearch ECS specification. For files, only errors are
-// logged
-func get(level zapcore.Level, logPath string, logToConsole bool) (*zap.Logger, error) {
+//
+// Logs to logPath. If logPath is empty or logToConsole is true, then it logs to console.
+func NewLogger(serviceId string, serviceName string, level zapcore.Level, logPath string, logToConsole bool) (Logger, error) {
 	var cores []zapcore.Core
 
 	if logPath != "" {
@@ -99,29 +67,39 @@ func get(level zapcore.Level, logPath string, logToConsole bool) (*zap.Logger, e
 
 	core := zapcore.NewTee(cores...)
 
-	l := zap.New(core)
+	zapLogger := zap.New(core)
 
-	return l, nil
+	return Logger{
+		logger: zapLogger,
+		service: ecsService{
+			id:   serviceId,
+			name: serviceName,
+		},
+	}, nil
 }
 
-func getLogFile(path string) (*os.File, error) {
-	dir := filepath.Dir(path)
-	_, err := os.Stat(dir)
-	if err != nil {
-		if os.IsNotExist(err) {
-			err = os.MkdirAll(dir, os.ModePerm)
-			if err != nil {
-				return nil, err
-			}
-		} else {
-			return nil, err
-		}
-	}
+func (l Logger) Fatal(msg string, err error, fields ...zap.Field) {
+	fields = append(fields, zap.Error(err))
+	l.Log(zapcore.FatalLevel, msg, fields...)
+}
 
-	f, err := os.OpenFile(path, os.O_APPEND|os.O_WRONLY|os.O_CREATE, 0600)
-	if err != nil {
-		return nil, err
-	}
+func (l Logger) Error(msg string, err error, fields ...zap.Field) {
+	fields = append(fields, zap.Error(err))
+	l.Log(zapcore.ErrorLevel, msg, fields...)
+}
 
-	return f, nil
+func (l Logger) Info(msg string, fields ...zap.Field) {
+	l.Log(zapcore.InfoLevel, msg, fields...)
+}
+
+func (l Logger) Log(level zapcore.Level, msg string, fields ...zap.Field) {
+	fields = append(fields, zapcore.Field{Key: "service",
+		Type:      zapcore.ObjectMarshalerType,
+		Interface: l.service,
+	})
+	l.logger.Log(level, msg, fields...)
+}
+
+func (l Logger) Println(args ...interface{}) {
+	l.Println(args)
 }

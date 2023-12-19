@@ -35,8 +35,7 @@ func dummyErrorFunction() error {
 }
 
 func TestGet(t *testing.T) {
-	logger := Logger{}
-	err := logger.Init("test_id", "test_name", zapcore.InfoLevel, "./test/log.log", false)
+	logger, err := NewLogger("test_id", "test_name", zapcore.InfoLevel, "./test/log.log", false)
 	assert.NoError(t, err)
 
 	expectedLogs := []logOutput{
@@ -46,7 +45,7 @@ func TestGet(t *testing.T) {
 			EcsVersion: "1.6.0",
 			Error: logError{
 				Message:    "dummy error",
-				StackTrace: "\ngithub.com/encypher-studio/newsware_index_utils/ecslogger.dummyErrorFunction\n\t/Users/said/Projects/encypher/newsware/newsware_index_utils/ecslogger/ecslogger_test.go:34\ngithub.com/encypher-studio/newsware_index_utils/ecslogger.TestGet\n\t/Users/said/Projects/encypher/newsware/newsware_index_utils/ecslogger/ecslogger_test.go:67\ntesting.tRunner\n\t/opt/homebrew/Cellar/go/1.21.2/libexec/src/testing/testing.go:1595\nruntime.goexit\n\t/opt/homebrew/Cellar/go/1.21.2/libexec/src/runtime/asm_arm64.s:1197",
+				StackTrace: "\ngithub.com/encypher-studio/newsware_index_utils/ecslogger.dummyErrorFunction\n\t/Users/said/Projects/encypher/newsware/newsware_index_utils/ecslogger/ecslogger_test.go:34\ngithub.com/encypher-studio/newsware_index_utils/ecslogger.TestGet\n\t/Users/said/Projects/encypher/newsware/newsware_index_utils/ecslogger/ecslogger_test.go:66\ntesting.tRunner\n\t/opt/homebrew/Cellar/go/1.21.2/libexec/src/testing/testing.go:1595\nruntime.goexit\n\t/opt/homebrew/Cellar/go/1.21.2/libexec/src/runtime/asm_arm64.s:1197",
 			},
 			Service: logService{
 				Id:   "test_id",
@@ -110,8 +109,7 @@ func TestRotation(t *testing.T) {
 	}
 
 	defaultLogRotation.MaxSize = 1
-	logger := Logger{}
-	err = logger.Init("test_id", "test_name", zapcore.InfoLevel, logPath, false)
+	logger, err := NewLogger("test_id", "test_name", zapcore.InfoLevel, logPath, false)
 	if !assert.NoError(t, err) {
 		assert.FailNow(t, "")
 	}
@@ -133,8 +131,7 @@ func TestRotation(t *testing.T) {
 func TestLogger_Fatal(t *testing.T) {
 	defer os.RemoveAll("./test")
 
-	logger := Logger{}
-	err := logger.Init("test_id", "test_name", zapcore.InfoLevel, "./test/log.log", false)
+	logger, err := NewLogger("test_id", "test_name", zapcore.InfoLevel, "./test/log.log", false)
 	if !assert.NoError(t, err) {
 		assert.FailNow(t, "")
 	}
@@ -154,8 +151,7 @@ func TestLogger_Fatal(t *testing.T) {
 
 func TestLogger_Error_shouldTruncateLargeErrorMessage(t *testing.T) {
 	defer os.RemoveAll("./test")
-	logger := Logger{}
-	err := logger.Init("test_id", "test_name", zapcore.InfoLevel, "./test/log.log", false)
+	logger, err := NewLogger("test_id", "test_name", zapcore.InfoLevel, "./test/log.log", false)
 	assert.NoError(t, err)
 
 	errBytes := make([]byte, errMsgMaxLength+1)
@@ -181,4 +177,15 @@ func TestLogger_Error_shouldTruncateLargeErrorMessage(t *testing.T) {
 
 	assert.Len(t, actualLog.Error.Message, errMsgMaxLength+len(truncateSuffix))
 	assert.True(t, strings.HasSuffix(actualLog.Error.Message, truncateSuffix), "error message has no truncate suffix")
+}
+
+func TestLogger_conforms_to_interface(t *testing.T) {
+	type wrapper struct {
+		logger ILogger
+	}
+
+	logger, err := NewLogger("test_id", "test_name", zapcore.InfoLevel, "./test/log.log", false)
+	assert.NoError(t, err)
+
+	_ = wrapper{logger: logger}
 }
