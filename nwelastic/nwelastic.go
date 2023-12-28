@@ -6,6 +6,7 @@ import (
 	"github.com/elastic/elastic-transport-go/v8/elastictransport"
 	"github.com/elastic/go-elasticsearch/v8"
 	"github.com/elastic/go-elasticsearch/v8/esutil"
+	"github.com/elastic/go-elasticsearch/v8/typedapi/core/get"
 	"github.com/elastic/go-elasticsearch/v8/typedapi/core/search"
 	"github.com/pkg/errors"
 	"net/http"
@@ -83,6 +84,10 @@ func (e *Elastic) bulkIndexer(index string) (esutil.BulkIndexer, error) {
 
 func (e *Elastic) Search() *search.Search {
 	return e.typedClient.Search()
+}
+
+func (e *Elastic) Get(index string, documentId string) *get.Get {
+	return e.typedClient.Get(index, documentId)
 }
 
 func (e *Elastic) elasticClientConfig() elasticsearch.Config {
