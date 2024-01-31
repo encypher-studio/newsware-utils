@@ -3,15 +3,16 @@ package ecslogger
 import (
 	"bufio"
 	"encoding/json"
-	"github.com/pkg/errors"
-	"github.com/stretchr/testify/assert"
-	"go.uber.org/zap/zapcore"
 	"io"
 	"os"
 	"os/exec"
 	"path/filepath"
 	"strings"
 	"testing"
+
+	"github.com/pkg/errors"
+	"github.com/stretchr/testify/assert"
+	"go.uber.org/zap/zapcore"
 )
 
 type logError struct {
@@ -45,7 +46,7 @@ func TestGet(t *testing.T) {
 			EcsVersion: "1.6.0",
 			Error: logError{
 				Message:    "dummy error",
-				StackTrace: "\ngithub.com/encypher-studio/newsware_index_utils/ecslogger.dummyErrorFunction\n\t/Users/said/Projects/encypher/newsware/newsware_index_utils/ecslogger/ecslogger_test.go:34\ngithub.com/encypher-studio/newsware_index_utils/ecslogger.TestGet\n\t/Users/said/Projects/encypher/newsware/newsware_index_utils/ecslogger/ecslogger_test.go:66\ntesting.tRunner\n\t/opt/homebrew/Cellar/go/1.21.2/libexec/src/testing/testing.go:1595\nruntime.goexit\n\t/opt/homebrew/Cellar/go/1.21.2/libexec/src/runtime/asm_arm64.s:1197",
+				StackTrace: "\ngithub.com/encypher-studio/newsware_index_utils/ecslogger.dummyErrorFunction\n\t/Users/said/Projects/encypher/newsware/newsware_index_utils/ecslogger/ecslogger_test.go:35\ngithub.com/encypher-studio/newsware_index_utils/ecslogger.TestGet\n\t/Users/said/Projects/encypher/newsware/newsware_index_utils/ecslogger/ecslogger_test.go:67\ntesting.tRunner\n\t/Users/said/.gvm/gos/go1.22rc2/src/testing/testing.go:1689\nruntime.goexit\n\t/Users/said/.gvm/gos/go1.22rc2/src/runtime/asm_arm64.s:1222",
 			},
 			Service: logService{
 				Id:   "test_id",

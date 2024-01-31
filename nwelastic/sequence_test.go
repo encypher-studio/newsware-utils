@@ -2,8 +2,9 @@ package nwelastic
 
 import (
 	"context"
-	"github.com/stretchr/testify/suite"
 	"testing"
+
+	"github.com/stretchr/testify/suite"
 )
 
 // newsRepositorySuite performs integration tests, they are run unless the test -short flag is set
@@ -14,13 +15,9 @@ type sequenceSuite struct {
 }
 
 func (s *sequenceSuite) SetupSuite() {
-	s.sequence = Sequence{
-		sequenceIndex: "sequence_test",
-	}
-	err := s.sequence.Init(&Elastic{Config: TestElasticConfig}, "index_to_sequence")
-	if err != nil {
-		s.FailNow(err.Error())
-	}
+	var err error
+	elastic := NewElastic(TestElasticConfig)
+	s.sequence, err = NewSequence(elastic, "index_test", "sequence_index_test")
 
 	err = s.sequence.elastic.StartTypedClient()
 	if err != nil {

@@ -3,12 +3,13 @@ package nwelastic
 import (
 	"context"
 	"encoding/json"
-	"github.com/elastic/go-elasticsearch/v8/typedapi/core/search"
-	"github.com/elastic/go-elasticsearch/v8/typedapi/types"
-	"github.com/stretchr/testify/suite"
 	"strconv"
 	"testing"
 	"time"
+
+	"github.com/elastic/go-elasticsearch/v8/typedapi/core/search"
+	"github.com/elastic/go-elasticsearch/v8/typedapi/types"
+	"github.com/stretchr/testify/suite"
 )
 
 var (
@@ -16,6 +17,7 @@ var (
 		Addresses:   []string{"https://localhost:9200"},
 		Username:    "elastic",
 		Password:    "changeme",
+		NewsIndex:   "nwelastic_tests",
 		LogRequests: false,
 	}
 )
@@ -36,9 +38,9 @@ type newsRepositorySuite struct {
 }
 
 func (r *newsRepositorySuite) SetupSuite() {
-	r.newsRepository.Index = "nwelastic_tests"
-	r.newsRepository.sequence.sequenceIndex = "sequence_tests"
-	err := r.newsRepository.Init(&Elastic{Config: TestElasticConfig})
+	var err error
+	elastic := NewElastic(TestElasticConfig)
+	r.newsRepository, err = NewNewsRepository(elastic, "sequence_tests")
 	if err != nil {
 		r.FailNow(err.Error())
 	}

@@ -3,14 +3,15 @@ package nwelastic
 import (
 	"context"
 	"crypto/tls"
+	"net/http"
+	"os"
+
 	"github.com/elastic/elastic-transport-go/v8/elastictransport"
 	"github.com/elastic/go-elasticsearch/v8"
 	"github.com/elastic/go-elasticsearch/v8/esutil"
 	"github.com/elastic/go-elasticsearch/v8/typedapi/core/get"
 	"github.com/elastic/go-elasticsearch/v8/typedapi/core/search"
 	"github.com/pkg/errors"
-	"net/http"
-	"os"
 )
 
 var (
@@ -21,6 +22,14 @@ type Elastic struct {
 	Config      ElasticConfig
 	typedClient *elasticsearch.TypedClient
 	client      *elasticsearch.Client
+}
+
+func NewElastic(config ElasticConfig) Elastic {
+	if config.NewsIndex == "" {
+		config.NewsIndex = "news"
+	}
+	elastic := Elastic{Config: config}
+	return elastic
 }
 
 func (e *Elastic) StartClient() (err error) {

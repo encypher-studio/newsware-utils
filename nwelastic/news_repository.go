@@ -5,10 +5,11 @@ import (
 	"context"
 	"encoding/json"
 	"flag"
-	"github.com/elastic/go-elasticsearch/v8/esutil"
-	"github.com/pkg/errors"
 	"strconv"
 	"time"
+
+	"github.com/elastic/go-elasticsearch/v8/esutil"
+	"github.com/pkg/errors"
 )
 
 var (
@@ -21,45 +22,44 @@ type Repository interface {
 }
 
 type NewsRepository struct {
-	elastic  *Elastic
+	elastic  Elastic
 	Index    string // Defaults to "news"
 	sequence Sequence
 }
 
-func (b *NewsRepository) Init(elastic *Elastic) error {
-	if b.Index == "" {
-		b.Index = "news"
+// NewNewsRepository creates a NewsRepository, if the context is a test, an index other than "news" must be passed otherwise it will fail.
+func NewNewsRepository(elastic Elastic, sequenceIndex ...string) (NewsRepository, error) {
+	if flag.Lookup("test.v") != nil && elastic.Config.NewsIndex == "news" {
+		return NewsRepository{}, errors.New("can't use index 'news' for tests")
 	}
 
-	if flag.Lookup("test.v") != nil && b.Index == "news" {
-		return errors.New("can't use index 'news' for tests")
-	}
-
-	b.elastic = elastic
-
-	err := b.elastic.StartClient()
+	err := elastic.StartClient()
 	if err != nil {
-		return err
+		return NewsRepository{}, err
 	}
 
-	err = b.elastic.StartTypedClient()
+	err = elastic.StartTypedClient()
 	if err != nil {
-		return err
+		return NewsRepository{}, err
 	}
 
-	err = b.sequence.Init(elastic, b.Index)
+	sequence, err := NewSequence(elastic, elastic.Config.NewsIndex, sequenceIndex...)
 	if err != nil {
-		return err
+		return NewsRepository{}, err
 	}
 
-	return nil
+	return NewsRepository{
+		Index:    elastic.Config.NewsIndex,
+		elastic:  elastic,
+		sequence: sequence,
+	}, nil
 }
 
 // InsertBatch inserts a batch of news, if the batch is too big, it is uploaded in sub-batches.
 // news must be ordered from [oldest... newest]. The insertedCallback is called after a sub-batch is inserted
 // it sends as arguments the total amount of news in the sub-batch and the batch index of the last item in the
 // sub-batch.
-func (b *NewsRepository) InsertBatch(news []*News, insertedCallback func(totalIndexed int, lastIndex int)) error {
+func (b NewsRepository) InsertBatch(news []*News, insertedCallback func(totalIndexed int, lastIndex int)) error {
 	if len(news) == 0 {
 		return nil
 	}
@@ -126,7 +126,7 @@ func (b *NewsRepository) InsertBatch(news []*News, insertedCallback func(totalIn
 	return nil
 }
 
-func (b *NewsRepository) Insert(news *News) error {
+func (b NewsRepository) Insert(news *News) error {
 	news.CreationTime = time.Now()
 	if len(news.Body) > maxQuerySize {
 		news.Body = ""

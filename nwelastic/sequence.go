@@ -3,43 +3,51 @@ package nwelastic
 import (
 	"bytes"
 	"context"
+	"flag"
+	"sort"
+	"sync"
+
 	"github.com/elastic/go-elasticsearch/v8/esapi"
 	"github.com/elastic/go-elasticsearch/v8/esutil"
 	"github.com/elastic/go-elasticsearch/v8/typedapi/core/search"
 	"github.com/elastic/go-elasticsearch/v8/typedapi/types"
 	"github.com/pkg/errors"
-	"sort"
-	"sync"
 )
 
 // Sequence helps retrieve unique and sequential ids from ElasticSearch using the method:
 // https://blogs.perl.org/users/clinton_gormley/2011/10/elasticsearchsequence---a-blazing-fast-ticket-server.html
 type Sequence struct {
-	elastic       *Elastic
+	elastic       Elastic
 	sequenceIndex string
 	index         string
 }
 
-// Init initializes Sequence. The index argument is the index for which a sequence will be generated.
-func (s *Sequence) Init(elastic *Elastic, index string) error {
+// NewSequence creates a Sequence. The index argument is the index for which a sequence will be generated.
+func NewSequence(elastic Elastic, index string, sequenceIndex ...string) (Sequence, error) {
+	s := Sequence{}
 	s.index = index
 	s.elastic = elastic
 
 	err := s.elastic.StartClient()
 	if err != nil {
-		return err
+		return Sequence{}, err
 	}
 
 	err = s.elastic.StartTypedClient()
 	if err != nil {
-		return err
+		return Sequence{}, err
 	}
 
-	if s.sequenceIndex == "" {
+	if len(sequenceIndex) > 0 {
+		s.sequenceIndex = sequenceIndex[0]
+	} else {
+		if flag.Lookup("test.v") != nil {
+			return Sequence{}, errors.New("can't use index 'sequence' for tests")
+		}
 		s.sequenceIndex = "sequence"
 	}
 
-	return nil
+	return s, nil
 }
 
 // GenerateUniqueIds requests unique ids to Sequence.sequenceIndex, the ids are generated for s.index

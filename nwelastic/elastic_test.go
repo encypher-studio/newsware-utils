@@ -2,12 +2,13 @@ package nwelastic
 
 import (
 	"encoding/json"
-	"github.com/stretchr/testify/assert"
-	"github.com/stretchr/testify/suite"
 	"math/rand"
 	"strconv"
 	"testing"
 	"time"
+
+	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/suite"
 )
 
 var (
@@ -41,18 +42,19 @@ type nwElasticSuite struct {
 	suite.Suite
 	config         ElasticConfig
 	newsRepository NewsRepository
-	elastic        *Elastic
+	elastic        Elastic
 }
 
 func (n *nwElasticSuite) SetupSuite() {
-	testIndex := strconv.Itoa(rand.Int())
-	n.newsRepository.Index = testIndex
-	err := n.newsRepository.Init(&Elastic{Config: TestElasticConfig})
+	var err error
+	elasticConfig := TestElasticConfig
+	elasticConfig.NewsIndex = strconv.Itoa(rand.Int())
+	n.elastic = NewElastic(elasticConfig)
+	n.elastic.StartTypedClient()
+	n.newsRepository, err = NewNewsRepository(n.elastic, "sequence_test")
 	if err != nil {
 		n.FailNow(err.Error())
 	}
-
-	n.elastic = n.newsRepository.elastic
 
 	_, _ = n.newsRepository.elastic.typedClient.Indices.Delete(n.newsRepository.Index).Do(nil)
 	_, _ = n.newsRepository.elastic.typedClient.Delete(n.newsRepository.sequence.sequenceIndex, n.newsRepository.Index).Do(nil)
