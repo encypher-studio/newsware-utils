@@ -1,11 +1,12 @@
 package ecslogger
 
 import (
+	"os"
+
 	"go.elastic.co/ecszap"
 	"go.uber.org/zap"
 	"go.uber.org/zap/zapcore"
 	"gopkg.in/natefinch/lumberjack.v2"
-	"os"
 )
 
 var (
@@ -33,7 +34,7 @@ type Logger struct {
 	service ecsService
 }
 
-// NewLogger returns a configured Logger.
+// New returns a configured Logger.
 //
 // serviceId must distinctly identify the service that is using the logger. If the service runs
 // in multiple nodes, the serviceId should be the same for all. For example an indexer for SEC filings running on 10
@@ -42,14 +43,14 @@ type Logger struct {
 // serviceName is just a readable name for the service that will be added to logs.
 //
 // Logs to logPath. If logPath is empty or logToConsole is true, then it logs to console.
-func NewLogger(serviceId string, serviceName string, level zapcore.Level, logPath string, logToConsole bool) (Logger, error) {
+func New(config Config) (Logger, error) {
 	var cores []zapcore.Core
 
-	if logPath != "" {
+	if config.Path != "" {
 		cores = append(cores, NewCore(
 			ecszap.NewDefaultEncoderConfig(),
 			zapcore.AddSync(&lumberjack.Logger{
-				Filename:   logPath,
+				Filename:   config.Path,
 				MaxSize:    defaultLogRotation.MaxSize,
 				MaxAge:     defaultLogRotation.MaxAge,
 				MaxBackups: defaultLogRotation.MaxBackups,
@@ -60,9 +61,9 @@ func NewLogger(serviceId string, serviceName string, level zapcore.Level, logPat
 		)
 	}
 
-	if logToConsole || len(cores) == 0 {
+	if config.Console || len(cores) == 0 {
 		consoleEncoder := zapcore.NewConsoleEncoder(zap.NewProductionEncoderConfig())
-		cores = append(cores, zapcore.NewCore(consoleEncoder, zapcore.AddSync(os.Stdout), level))
+		cores = append(cores, zapcore.NewCore(consoleEncoder, zapcore.AddSync(os.Stdout), config.Level))
 	}
 
 	core := zapcore.NewTee(cores...)
@@ -72,8 +73,8 @@ func NewLogger(serviceId string, serviceName string, level zapcore.Level, logPat
 	return Logger{
 		logger: zapLogger,
 		service: ecsService{
-			id:   serviceId,
-			name: serviceName,
+			id:   config.Service.Id,
+			name: config.Service.Name,
 		},
 	}, nil
 }
