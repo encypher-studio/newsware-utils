@@ -7,8 +7,8 @@ import (
 	"net/http/httptest"
 	"testing"
 
-	"github.com/encypher-studio/newsware_index_utils/nwelastic"
-	"github.com/encypher-studio/newsware_index_utils/response"
+	"github.com/encypher-studio/newsware-utils/nwelastic"
+	"github.com/encypher-studio/newsware-utils/response"
 )
 
 func TestIndexer_Index(t *testing.T) {

@@ -6,8 +6,8 @@ import (
 	"io"
 	"net/http"
 
-	"github.com/encypher-studio/newsware_index_utils/nwelastic"
-	"github.com/encypher-studio/newsware_index_utils/response"
+	"github.com/encypher-studio/newsware-utils/nwelastic"
+	"github.com/encypher-studio/newsware-utils/response"
 	"github.com/pkg/errors"
 )
 

@@ -8,7 +8,7 @@ import (
 	"runtime"
 	"testing"
 
-	"github.com/encypher-studio/newsware_index_utils/nwelastic"
+	"github.com/encypher-studio/newsware-utils/nwelastic"
 	"gopkg.in/yaml.v3"
 )
 
