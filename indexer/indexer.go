@@ -20,12 +20,12 @@ type Indexer struct {
 	apiKey      string
 }
 
-func New(host string, apiKey string) Indexer {
+func New(config Config) Indexer {
 	return Indexer{
-		host:        host,
+		host:        config.Host,
 		pathPrefix:  "/api/v1",
 		contentType: "application/json",
-		apiKey:      apiKey,
+		apiKey:      config.ApiKey,
 	}
 }
 
