@@ -1,4 +1,4 @@
-module github.com/encypher-studio/newsware_index_utils
+module github.com/encypher-studio/newsware-utils
 
 go 1.19
 

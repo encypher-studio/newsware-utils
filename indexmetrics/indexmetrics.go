@@ -1,8 +1,9 @@
 package indexmetrics
 
 import (
-	"github.com/encypher-studio/newsware_index_utils/ecslogger"
 	"net/http"
+
+	"github.com/encypher-studio/newsware-utils/ecslogger"
 
 	"github.com/prometheus/client_golang/prometheus"
 	"github.com/prometheus/client_golang/prometheus/promhttp"
