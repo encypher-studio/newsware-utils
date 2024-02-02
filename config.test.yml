@@ -1,0 +1,4 @@
+# For indexer integration tests
+indexer:
+  host: http://localhost:8080
+  apiKey: example-api-key
