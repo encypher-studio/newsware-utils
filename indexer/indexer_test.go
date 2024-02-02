@@ -43,7 +43,7 @@ func TestIndexer_Index(t *testing.T) {
 				w.Write(marshalUnsafe(tt.response))
 			}))
 
-			i := New(Config{
+			i := new(Config{
 				Host:   server.URL,
 				ApiKey: "",
 			})
@@ -104,7 +104,7 @@ func TestIndexer_IndexBatch(t *testing.T) {
 				w.Write(marshalUnsafe(tt.response))
 			}))
 
-			i := New(Config{
+			i := new(Config{
 				Host:   server.URL,
 				ApiKey: "",
 			})
@@ -121,6 +121,51 @@ func TestIndexer_IndexBatch(t *testing.T) {
 
 			if actualLastIndexed != tt.expectedLastIndex {
 				t.Fatalf("totalIndexed is not as expected, got %d, expected %d", actualLastIndexed, tt.expectedLastIndex)
+			}
+		})
+	}
+}
+
+func TestIndexer_New(t *testing.T) {
+	tests := []struct {
+		name         string
+		responseCode int
+		response     interface{}
+		expectedErr  error
+	}{
+		{
+			"success",
+			200,
+			response.Response[*int, *int]{},
+			nil,
+		},
+		{
+			"error",
+			500,
+			response.Response[*int, *int]{
+				Error: &response.ResponseError[*int]{
+					Code:    "test_code",
+					Message: "test",
+				},
+			},
+			errors.New("test"),
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+				w.WriteHeader(tt.responseCode)
+				w.Write(marshalUnsafe(tt.response))
+			}))
+
+			_, err := New(Config{
+				Host:   server.URL,
+				ApiKey: "",
+			})
+			if err != nil || tt.expectedErr != nil {
+				if tt.expectedErr == nil || err.Error() != tt.expectedErr.Error() {
+					t.Fatalf("error is not as expected, got '%s', expected '%s'", err, tt.expectedErr)
+				}
 			}
 		})
 	}

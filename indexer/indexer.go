@@ -20,7 +20,12 @@ type Indexer struct {
 	apiKey      string
 }
 
-func New(config Config) Indexer {
+func New(config Config) (Indexer, error) {
+	i := new(config)
+	return i, i.Ping()
+}
+
+func new(config Config) Indexer {
 	return Indexer{
 		host:        config.Host,
 		pathPrefix:  "/api/v1",
@@ -76,6 +81,24 @@ func (i Indexer) IndexBatch(news []*nwelastic.News) (int, int, error) {
 	}
 
 	return respApi.Error.Data.TotalIndexed, respApi.Error.Data.LastIndex, errors.New(respApi.Error.Message)
+}
+
+func (i Indexer) Ping() error {
+	resp, err := http.Post(i.urlWithAuth("/ping"), i.contentType, nil)
+	if err != nil {
+		return errors.Wrap(err, "calling /ping")
+	}
+
+	if resp.StatusCode >= 200 && resp.StatusCode <= 299 {
+		return nil
+	}
+
+	respApi, err := handleErrorResponse[*int](resp)
+	if err != nil {
+		return errors.Wrap(err, "handling error response")
+	}
+
+	return errors.New(respApi.Error.Message)
 }
 
 func handleResponse[T any](resp *http.Response) (response.Response[T, *int], error) {
