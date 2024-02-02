@@ -60,24 +60,24 @@ func (i Indexer) Index(news *nwelastic.News) error {
 func (i Indexer) IndexBatch(news []*nwelastic.News) (int, int, error) {
 	newsJson, err := json.Marshal(news)
 	if err != nil {
-		return 0, 0, errors.Wrap(err, "marshaling news item")
+		return -1, -1, errors.Wrap(err, "marshaling news item")
 	}
 	resp, err := http.Post(i.urlWithAuth("/upload/batch"), i.contentType, bytes.NewReader(newsJson))
 	if err != nil {
-		return 0, 0, errors.Wrap(err, "calling /upload/batch")
+		return -1, -1, errors.Wrap(err, "calling /upload/batch")
 	}
 
 	if resp.StatusCode >= 200 && resp.StatusCode <= 299 {
 		respApi, err := handleResponse[UploadBatchData](resp)
 		if err != nil {
-			return 0, 0, errors.Wrap(err, "handling response")
+			return -1, -1, errors.Wrap(err, "handling response")
 		}
 		return respApi.Data.TotalIndexed, respApi.Data.LastIndex, nil
 	}
 
 	respApi, err := handleErrorResponse[UploadBatchData](resp)
 	if err != nil {
-		return 0, 0, errors.Wrap(err, "handling error response")
+		return -1, -1, errors.Wrap(err, "handling error response")
 	}
 
 	return respApi.Error.Data.TotalIndexed, respApi.Error.Data.LastIndex, errors.New(respApi.Error.Message)
