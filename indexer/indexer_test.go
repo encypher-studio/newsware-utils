@@ -43,7 +43,10 @@ func TestIndexer_Index(t *testing.T) {
 				w.Write(marshalUnsafe(tt.response))
 			}))
 
-			i := New(server.URL, "")
+			i := New(Config{
+				Host:   server.URL,
+				ApiKey: "",
+			})
 			err := i.Index(&nwelastic.News{})
 			if err != nil {
 				if err.Error() != tt.expectedErr.Error() {
@@ -101,7 +104,10 @@ func TestIndexer_IndexBatch(t *testing.T) {
 				w.Write(marshalUnsafe(tt.response))
 			}))
 
-			i := New(server.URL, "")
+			i := New(Config{
+				Host:   server.URL,
+				ApiKey: "",
+			})
 			actualTotalIndexed, actualLastIndexed, err := i.IndexBatch([]*nwelastic.News{})
 			if err != nil {
 				if err.Error() != tt.expectedErr.Error() {

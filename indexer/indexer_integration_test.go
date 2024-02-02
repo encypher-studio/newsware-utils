@@ -13,10 +13,7 @@ import (
 )
 
 type integrationConfiguration struct {
-	Indexer struct {
-		Host   string
-		ApiKey string `yaml:"apiKey"`
-	}
+	Indexer Config
 }
 
 var _integrationCfg *integrationConfiguration
@@ -58,7 +55,10 @@ func TestIndexer_Index_integration(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			i := New(integrationCfg().Indexer.Host, integrationCfg().Indexer.ApiKey)
+			i := New(Config{
+				Host:   integrationCfg().Indexer.Host,
+				ApiKey: integrationCfg().Indexer.ApiKey,
+			})
 			err := i.Index(&nwelastic.News{Id: rand.Int63()})
 			if err != nil || tt.expectedErr != nil {
 				if tt.expectedErr == nil || err.Error() != tt.expectedErr.Error() {
@@ -101,7 +101,10 @@ func TestIndexer_IndexBatch_integration(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			i := New(integrationCfg().Indexer.Host, integrationCfg().Indexer.ApiKey)
+			i := New(Config{
+				Host:   integrationCfg().Indexer.Host,
+				ApiKey: integrationCfg().Indexer.ApiKey,
+			})
 			actualTotalIndexed, actualLastIndexed, err := i.IndexBatch(tt.news)
 			if err != nil || tt.expectedErr != nil {
 				if tt.expectedErr == nil || err.Error() != tt.expectedErr.Error() {
