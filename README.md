@@ -1,1 +1,5 @@
-# newsware_index_utils
+# Newsware utils
+
+# Testing
+
+Use "go test ./... -short" to skip integration tests
