@@ -2,4 +2,8 @@
 
 # Testing
 
-Use "go test ./... -short" to skip integration tests
+To also run integration test set INTEGRATION env variable to anything:
+
+```bash
+INTEGRATION=true go test ./...
+```
