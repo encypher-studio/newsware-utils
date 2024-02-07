@@ -89,7 +89,7 @@ func (n *nwElasticSuite) TestGet() {
 		n.FailNow("")
 	}
 
-	res, err := n.elastic.Get(n.newsRepository.Index, strconv.FormatInt(news.Id, 10)).Do(nil)
+	res, err := n.elastic.Get(n.newsRepository.Index, news.Id).Do(nil)
 	if !n.NoError(err) {
 		n.FailNow("")
 	}

@@ -39,9 +39,9 @@ func (i Indexer) Index(news *nwelastic.News) error {
 	if err != nil {
 		return errors.Wrap(err, "marshaling news item")
 	}
-	resp, err := http.Post(i.urlWithAuth("/upload"), i.contentType, bytes.NewReader(newsJson))
+	resp, err := http.Post(i.urlWithAuth("/index"), i.contentType, bytes.NewReader(newsJson))
 	if err != nil {
-		return errors.Wrap(err, "calling /upload")
+		return errors.Wrap(err, "calling /index")
 	}
 
 	if resp.StatusCode >= 200 && resp.StatusCode <= 299 {
@@ -56,26 +56,26 @@ func (i Indexer) Index(news *nwelastic.News) error {
 	return errors.New(respApi.Error.Message)
 }
 
-// IndexBatch calls /upload/batch and returns the total amount of indexed records, the last indexed id, and an error if exists
+// IndexBatch calls /index/batch and returns the total amount of indexed records, the last indexed id, and an error if exists
 func (i Indexer) IndexBatch(news []*nwelastic.News) (int, int, error) {
 	newsJson, err := json.Marshal(news)
 	if err != nil {
 		return -1, -1, errors.Wrap(err, "marshaling news item")
 	}
-	resp, err := http.Post(i.urlWithAuth("/upload/batch"), i.contentType, bytes.NewReader(newsJson))
+	resp, err := http.Post(i.urlWithAuth("/index/batch"), i.contentType, bytes.NewReader(newsJson))
 	if err != nil {
-		return -1, -1, errors.Wrap(err, "calling /upload/batch")
+		return -1, -1, errors.Wrap(err, "calling /index/batch")
 	}
 
 	if resp.StatusCode >= 200 && resp.StatusCode <= 299 {
-		respApi, err := handleResponse[UploadBatchData](resp)
+		respApi, err := handleResponse[IndexBatchData](resp)
 		if err != nil {
 			return -1, -1, errors.Wrap(err, "handling response")
 		}
 		return respApi.Data.TotalIndexed, respApi.Data.LastIndex, nil
 	}
 
-	respApi, err := handleErrorResponse[UploadBatchData](resp)
+	respApi, err := handleErrorResponse[IndexBatchData](resp)
 	if err != nil {
 		return -1, -1, errors.Wrap(err, "handling error response")
 	}

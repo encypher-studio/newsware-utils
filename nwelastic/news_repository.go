@@ -5,7 +5,6 @@ import (
 	"context"
 	"encoding/json"
 	"flag"
-	"strconv"
 	"time"
 
 	"github.com/elastic/go-elasticsearch/v8/esutil"
@@ -88,21 +87,14 @@ func (b NewsRepository) InsertBatch(news []*News, insertedCallback func(totalInd
 			return err
 		}
 
-		ids, err := b.sequence.GenerateUniqueIds(toIndex - fromIndex)
-		if err != nil {
-			return err
-		}
-
-		for i, newsItem := range news[fromIndex:toIndex] {
-			// Assign the highest id to the newest record
-			newsItem.Id = ids[i]
+		for _, newsItem := range news[fromIndex:toIndex] {
 			newsItemBytes, err := json.Marshal(newsItem)
 			if err != nil {
 				return err
 			}
 			err = bulkIndexer.Add(context.Background(), esutil.BulkIndexerItem{
 				Index:      b.Index,
-				DocumentID: strconv.FormatInt(newsItem.Id, 10),
+				DocumentID: newsItem.Id,
 				Action:     "index",
 				Body:       bytes.NewReader(newsItemBytes),
 			})
@@ -132,13 +124,9 @@ func (b NewsRepository) Insert(news *News) error {
 		news.Body = ""
 	}
 
-	ids, err := b.sequence.GenerateUniqueIds(1)
-	if err != nil {
-		return err
-	}
-	news.Id = ids[0]
+	news.Id = "1"
 
-	_, err = b.elastic.typedClient.Index(b.Index).Request(news).Id(strconv.FormatInt(news.Id, 10)).Do(context.Background())
+	_, err := b.elastic.typedClient.Index(b.Index).Request(news).Id(news.Id).Do(context.Background())
 	if err != nil {
 		return errors.Wrap(err, "failed to insert news")
 	}

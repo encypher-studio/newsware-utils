@@ -53,7 +53,7 @@ func TestGet(t *testing.T) {
 			EcsVersion: "1.6.0",
 			Error: logError{
 				Message:    "dummy error",
-				StackTrace: "\ngithub.com/encypher-studio/newsware-utils/ecslogger.dummyErrorFunction\n\t/Users/said/Projects/encypher/newsware/newsware_index_utils/ecslogger/ecslogger_test.go:35\ngithub.com/encypher-studio/newsware-utils/ecslogger.TestGet\n\t/Users/said/Projects/encypher/newsware/newsware_index_utils/ecslogger/ecslogger_test.go:74\ntesting.tRunner\n\t/Users/said/.gvm/gos/go1.22rc2/src/testing/testing.go:1689\nruntime.goexit\n\t/Users/said/.gvm/gos/go1.22rc2/src/runtime/asm_arm64.s:1222",
+				StackTrace: "\ngithub.com/encypher-studio/newsware-utils/ecslogger.dummyErrorFunction",
 			},
 			Service: logService{
 				Id:   "test_id",
@@ -86,6 +86,8 @@ func TestGet(t *testing.T) {
 		actualLog := logOutput{}
 		err = json.Unmarshal([]byte(text), &actualLog)
 		assert.NoError(t, err)
+		assert.Contains(t, actualLog.Error.StackTrace, expectedLogs[i].Error.StackTrace)
+		expectedLogs[i].Error.StackTrace = actualLog.Error.StackTrace
 		assert.Equal(t, expectedLogs[i], actualLog)
 		i++
 	}
