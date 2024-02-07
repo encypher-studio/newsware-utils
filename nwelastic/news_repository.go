@@ -124,8 +124,6 @@ func (b NewsRepository) Insert(news *News) error {
 		news.Body = ""
 	}
 
-	news.Id = "1"
-
 	_, err := b.elastic.typedClient.Index(b.Index).Request(news).Id(news.Id).Do(context.Background())
 	if err != nil {
 		return errors.Wrap(err, "failed to insert news")

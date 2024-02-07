@@ -274,6 +274,7 @@ func (r *newsRepositorySuite) TestNewsRepository_Insert() {
 		{
 			"insert news",
 			&News{
+				Id:              "100",
 				Headline:        "headline",
 				Body:            "body",
 				Tickers:         []string{"ticker"},
@@ -285,13 +286,6 @@ func (r *newsRepositorySuite) TestNewsRepository_Insert() {
 				ReceivedTime:    defaultTime.Add(time.Minute),
 			},
 			nil,
-		},
-		{
-			"should set id",
-			&News{},
-			&News{
-				Id: "1",
-			},
 		},
 	}
 	for _, tt := range tests {

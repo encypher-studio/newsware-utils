@@ -81,6 +81,7 @@ func (n *nwElasticSuite) TearDownSubTest() {
 func (n *nwElasticSuite) TestGet() {
 	expectedHeadline := "headline"
 	news := News{
+		Id:       "1",
 		Headline: expectedHeadline,
 	}
 
