@@ -3,7 +3,6 @@ package nwelastic
 import (
 	"context"
 	"encoding/json"
-	"strconv"
 	"testing"
 	"time"
 
@@ -85,6 +84,7 @@ func (r *newsRepositorySuite) TestNewsRepository_InsertBatch() {
 			"insert news",
 			[]*News{
 				{
+					Id:              "1",
 					Headline:        "headline",
 					Body:            "body",
 					Tickers:         []string{"ticker"},
@@ -96,6 +96,7 @@ func (r *newsRepositorySuite) TestNewsRepository_InsertBatch() {
 					ReceivedTime:    defaultTime.Add(time.Minute),
 				},
 				{
+					Id:              "2",
 					Headline:        "headline2",
 					Body:            "body2",
 					Tickers:         []string{"ticker2"},
@@ -113,12 +114,14 @@ func (r *newsRepositorySuite) TestNewsRepository_InsertBatch() {
 			"limit query size",
 			[]*News{
 				{
+					Id:              "1",
 					Headline:        "1",
 					Body:            generateBody(maxQuerySize),
 					PublicationTime: defaultTime.Add(time.Minute),
 					ReceivedTime:    defaultTime.Add(time.Minute),
 				},
 				{
+					Id:              "2",
 					Headline:        generateBody(maxQuerySize),
 					PublicationTime: defaultTime,
 				},
@@ -129,12 +132,14 @@ func (r *newsRepositorySuite) TestNewsRepository_InsertBatch() {
 			"body bigger than max query size",
 			[]*News{
 				{
+					Id:              "1",
 					Headline:        "1",
 					Body:            generateBody(maxQuerySize * 2),
 					PublicationTime: defaultTime.Add(time.Minute),
 					ReceivedTime:    defaultTime.Add(time.Minute),
 				},
 				{
+					Id:              "2",
 					Headline:        "2",
 					Body:            generateBody(maxQuerySize * 2),
 					PublicationTime: defaultTime,
@@ -142,14 +147,14 @@ func (r *newsRepositorySuite) TestNewsRepository_InsertBatch() {
 			},
 			[]*News{
 				{
-					Id:              1,
+					Id:              "1",
 					Headline:        "1",
 					Body:            "",
 					PublicationTime: defaultTime.Add(time.Minute),
 					ReceivedTime:    defaultTime.Add(time.Minute),
 				},
 				{
-					Id:              2,
+					Id:              "2",
 					Headline:        "2",
 					Body:            "",
 					PublicationTime: defaultTime,
@@ -160,36 +165,42 @@ func (r *newsRepositorySuite) TestNewsRepository_InsertBatch() {
 			"multiple batches",
 			[]*News{
 				{
+					Id:              "1",
 					Headline:        "1",
 					Body:            generateBody(maxQuerySize / 2),
 					PublicationTime: defaultTime.Add(time.Minute * 60),
 					ReceivedTime:    defaultTime.Add(time.Minute * 60),
 				},
 				{
+					Id:              "2",
 					Headline:        "2",
 					Body:            generateBody(maxQuerySize / 2),
 					PublicationTime: defaultTime.Add(time.Minute * 59),
 					ReceivedTime:    defaultTime.Add(time.Minute * 59),
 				},
 				{
+					Id:              "3",
 					Headline:        "3",
 					Body:            generateBody(maxQuerySize / 2),
 					PublicationTime: defaultTime.Add(time.Minute * 58),
 					ReceivedTime:    defaultTime.Add(time.Minute * 58),
 				},
 				{
+					Id:              "4",
 					Headline:        "4",
 					Body:            generateBody(maxQuerySize / 2),
 					PublicationTime: defaultTime.Add(time.Minute * 57),
 					ReceivedTime:    defaultTime.Add(time.Minute * 57),
 				},
 				{
+					Id:              "5",
 					Headline:        "5",
 					Body:            generateBody(maxQuerySize / 2),
 					PublicationTime: defaultTime.Add(time.Minute * 56),
 					ReceivedTime:    defaultTime.Add(time.Minute * 56),
 				},
 				{
+					Id:              "6",
 					Headline:        "6",
 					Body:            generateBody(maxQuerySize / 2),
 					PublicationTime: defaultTime,
@@ -244,7 +255,7 @@ func (r *newsRepositorySuite) TestNewsRepository_InsertBatch() {
 				r.FailNow("expected and actuals news lengths don't match")
 			}
 			for i, actualNewsItem := range actualNews {
-				r.Equal(strconv.FormatInt(tt.expectedNews[i].Id, 10), resp.Hits.Hits[i].Id_, "wrong document _id")
+				r.Equal(tt.expectedNews[i].Id, resp.Hits.Hits[i].Id_, "wrong document _id")
 				r.assertNewsEqual(tt.expectedNews[i], actualNewsItem)
 			}
 		})
@@ -279,7 +290,7 @@ func (r *newsRepositorySuite) TestNewsRepository_Insert() {
 			"should set id",
 			&News{},
 			&News{
-				Id: 1,
+				Id: "1",
 			},
 		},
 	}
@@ -324,7 +335,7 @@ func (r *newsRepositorySuite) TestNewsRepository_Insert() {
 				tt.expectedNews = tt.news
 			}
 
-			r.Equal(strconv.FormatInt(tt.expectedNews.Id, 10), resp.Hits.Hits[0].Id_, "wrong document _id")
+			r.Equal(tt.expectedNews.Id, resp.Hits.Hits[0].Id_, "wrong document _id")
 
 			r.assertNewsEqual(tt.expectedNews, actualNews)
 		})

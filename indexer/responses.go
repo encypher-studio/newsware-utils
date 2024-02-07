@@ -1,6 +1,6 @@
 package indexer
 
-type UploadBatchData struct {
+type IndexBatchData struct {
 	TotalIndexed int `json:"totalIndexed"`
 	LastIndex    int `json:"lastIndex"`
 }

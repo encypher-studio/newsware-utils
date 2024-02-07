@@ -69,8 +69,8 @@ func TestIndexer_IndexBatch(t *testing.T) {
 		{
 			"success",
 			200,
-			response.Response[UploadBatchData, *int]{
-				Data: UploadBatchData{
+			response.Response[IndexBatchData, *int]{
+				Data: IndexBatchData{
 					TotalIndexed: 10,
 					LastIndex:    20,
 				},
@@ -82,11 +82,11 @@ func TestIndexer_IndexBatch(t *testing.T) {
 		{
 			"error",
 			500,
-			response.Response[*int, UploadBatchData]{
-				Error: &response.ResponseError[UploadBatchData]{
+			response.Response[*int, IndexBatchData]{
+				Error: &response.ResponseError[IndexBatchData]{
 					Code:    "test_code",
 					Message: "test",
-					Data: UploadBatchData{
+					Data: IndexBatchData{
 						TotalIndexed: 100,
 						LastIndex:    200,
 					},

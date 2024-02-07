@@ -2,7 +2,6 @@ package indexer
 
 import (
 	"fmt"
-	"math/rand"
 	"os"
 	"path"
 	"runtime"
@@ -59,7 +58,7 @@ func TestIndexer_Index_integration(t *testing.T) {
 				Host:   integrationCfg().Indexer.Host,
 				ApiKey: integrationCfg().Indexer.ApiKey,
 			})
-			err := i.Index(&nwelastic.News{Id: rand.Int63()})
+			err := i.Index(&nwelastic.News{Id: "1"})
 			if err != nil || tt.expectedErr != nil {
 				if tt.expectedErr == nil || err.Error() != tt.expectedErr.Error() {
 					t.Fatalf("error is not as expected, got '%s', expected '%s'", err, tt.expectedErr)
@@ -87,10 +86,10 @@ func TestIndexer_IndexBatch_integration(t *testing.T) {
 			"success",
 			[]*nwelastic.News{
 				{
-					Id: rand.Int63(),
+					Id: "1",
 				},
 				{
-					Id: rand.Int63(),
+					Id: "2",
 				},
 			},
 			200,
