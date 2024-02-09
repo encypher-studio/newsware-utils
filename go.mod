@@ -1,6 +1,6 @@
 module github.com/encypher-studio/newsware-utils
 
-go 1.19
+go 1.22rc2
 
 require (
 	github.com/avast/retry-go/v4 v4.5.0
@@ -12,6 +12,7 @@ require (
 	go.elastic.co/ecszap v1.0.2
 	go.uber.org/zap v1.25.0
 	gopkg.in/natefinch/lumberjack.v2 v2.2.1
+	gopkg.in/yaml.v3 v3.0.1
 )
 
 require (
@@ -28,5 +29,4 @@ require (
 	go.uber.org/multierr v1.10.0 // indirect
 	golang.org/x/sys v0.8.0 // indirect
 	google.golang.org/protobuf v1.30.0 // indirect
-	gopkg.in/yaml.v3 v3.0.1 // indirect
 )

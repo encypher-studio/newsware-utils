@@ -45,7 +45,7 @@ func (i Indexer) Index(news *nwelastic.News) error {
 	}
 
 	if resp.StatusCode >= 200 && resp.StatusCode <= 299 {
-		return nil
+		return handleEmptyResponse(resp)
 	}
 
 	respApi, err := handleErrorResponse[*int](resp)
@@ -90,7 +90,7 @@ func (i Indexer) Ping() error {
 	}
 
 	if resp.StatusCode >= 200 && resp.StatusCode <= 299 {
-		return nil
+		return handleEmptyResponse(resp)
 	}
 
 	respApi, err := handleErrorResponse[*int](resp)
@@ -102,6 +102,7 @@ func (i Indexer) Ping() error {
 }
 
 func handleResponse[T any](resp *http.Response) (response.Response[T, *int], error) {
+	defer resp.Body.Close()
 	var respApi response.Response[T, *int]
 	respBytes, err := io.ReadAll(resp.Body)
 	if err != nil {
@@ -117,6 +118,7 @@ func handleResponse[T any](resp *http.Response) (response.Response[T, *int], err
 }
 
 func handleErrorResponse[T any](resp *http.Response) (response.Response[*int, T], error) {
+	defer resp.Body.Close()
 	var respApi response.Response[*int, T]
 	respBytes, err := io.ReadAll(resp.Body)
 	if err != nil {
@@ -129,6 +131,13 @@ func handleErrorResponse[T any](resp *http.Response) (response.Response[*int, T]
 	}
 
 	return respApi, nil
+}
+
+// handleEmptyResponse makes sure that response Body is read and closed so that the tcp connection can be reused
+func handleEmptyResponse(resp *http.Response) error {
+	io.ReadAll(resp.Body)
+	resp.Body.Close()
+	return nil
 }
 
 func (i Indexer) urlWithAuth(endpoint string) string {
