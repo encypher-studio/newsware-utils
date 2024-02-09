@@ -114,12 +114,10 @@ func TestIndexer_Index_Load(t *testing.T) {
 
 func TestIndexer_IndexBatch(t *testing.T) {
 	tests := []struct {
-		name                 string
-		responseCode         int
-		response             interface{}
-		expectedTotalIndexed int
-		expectedLastIndex    int
-		expectedErr          error
+		name         string
+		responseCode int
+		response     interface{}
+		expectedErr  error
 	}{
 		{
 			"success",
@@ -130,8 +128,6 @@ func TestIndexer_IndexBatch(t *testing.T) {
 					LastIndex:    20,
 				},
 			},
-			10,
-			20,
 			nil,
 		},
 		{
@@ -147,8 +143,6 @@ func TestIndexer_IndexBatch(t *testing.T) {
 					},
 				},
 			},
-			100,
-			200,
 			errors.New("test"),
 		},
 	}
@@ -163,19 +157,11 @@ func TestIndexer_IndexBatch(t *testing.T) {
 				Host:   server.URL,
 				ApiKey: "",
 			})
-			actualTotalIndexed, actualLastIndexed, err := i.IndexBatch([]*nwelastic.News{})
+			err := i.IndexBatch([]*nwelastic.News{})
 			if err != nil {
 				if err.Error() != tt.expectedErr.Error() {
 					t.Fatalf("error is not as expected, got '%s', expected '%s'", err, tt.expectedErr)
 				}
-			}
-
-			if actualTotalIndexed != tt.expectedTotalIndexed {
-				t.Fatalf("totalIndexed is not as expected, got %d, expected %d", actualTotalIndexed, tt.expectedTotalIndexed)
-			}
-
-			if actualLastIndexed != tt.expectedLastIndex {
-				t.Fatalf("totalIndexed is not as expected, got %d, expected %d", actualLastIndexed, tt.expectedLastIndex)
 			}
 		})
 	}
