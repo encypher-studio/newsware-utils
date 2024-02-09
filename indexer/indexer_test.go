@@ -3,6 +3,7 @@ package indexer
 import (
 	"encoding/json"
 	"errors"
+	"fmt"
 	"net/http"
 	"net/http/httptest"
 	"testing"
@@ -10,6 +11,10 @@ import (
 	"github.com/encypher-studio/newsware-utils/nwelastic"
 	"github.com/encypher-studio/newsware-utils/response"
 )
+
+func init() {
+	http.DefaultTransport.(*http.Transport).MaxIdleConnsPerHost = 100
+}
 
 func TestIndexer_Index(t *testing.T) {
 	tests := []struct {
@@ -51,6 +56,56 @@ func TestIndexer_Index(t *testing.T) {
 			if err != nil {
 				if err.Error() != tt.expectedErr.Error() {
 					t.Fatalf("error is not as expected, got '%s', expected '%s'", err, tt.expectedErr)
+				}
+			}
+		})
+	}
+}
+
+func TestIndexer_Index_Load(t *testing.T) {
+	tests := []struct {
+		name          string
+		numberOfCalls int
+		expectedErr   error
+	}{
+		{
+			"100",
+			100,
+			nil,
+		},
+		{
+			"1000",
+			1000,
+			errors.New("test"),
+		},
+		{
+			"1000",
+			100000,
+			errors.New("test"),
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+				w.WriteHeader(http.StatusOK)
+				w.Write(marshalUnsafe(response.Response[*int, *int]{}))
+				r.Body.Close()
+			}))
+
+			i := new(Config{
+				Host:   server.URL,
+				ApiKey: "",
+			})
+			for j := range tt.numberOfCalls {
+				err := i.Index(&nwelastic.News{})
+				if err != nil {
+					println(fmt.Sprintf("error: on iteration %d", j))
+					if tt.expectedErr == nil {
+						t.Fatalf("unexpected error: %s", err)
+					}
+					if err.Error() != tt.expectedErr.Error() {
+						t.Fatalf("error is not as expected, got '%s', expected '%s'", err, tt.expectedErr)
+					}
 				}
 			}
 		})
