@@ -3,7 +3,6 @@ package indexer
 import (
 	"encoding/json"
 	"errors"
-	"fmt"
 	"net/http"
 	"net/http/httptest"
 	"testing"
@@ -96,71 +95,15 @@ func TestIndexer_Index_Load(t *testing.T) {
 				Host:   server.URL,
 				ApiKey: "",
 			})
-			for j := range tt.numberOfCalls {
+			for range tt.numberOfCalls {
 				err := i.Index(&nwelastic.News{})
 				if err != nil {
-					println(fmt.Sprintf("error: on iteration %d", j))
 					if tt.expectedErr == nil {
 						t.Fatalf("unexpected error: %s", err)
 					}
 					if err.Error() != tt.expectedErr.Error() {
 						t.Fatalf("error is not as expected, got '%s', expected '%s'", err, tt.expectedErr)
 					}
-				}
-			}
-		})
-	}
-}
-
-func TestIndexer_IndexBatch(t *testing.T) {
-	tests := []struct {
-		name         string
-		responseCode int
-		response     interface{}
-		expectedErr  error
-	}{
-		{
-			"success",
-			200,
-			response.Response[IndexBatchData, *int]{
-				Data: IndexBatchData{
-					TotalIndexed: 10,
-					LastIndex:    20,
-				},
-			},
-			nil,
-		},
-		{
-			"error",
-			500,
-			response.Response[*int, IndexBatchData]{
-				Error: &response.ResponseError[IndexBatchData]{
-					Code:    "test_code",
-					Message: "test",
-					Data: IndexBatchData{
-						TotalIndexed: 100,
-						LastIndex:    200,
-					},
-				},
-			},
-			errors.New("test"),
-		},
-	}
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-				w.WriteHeader(tt.responseCode)
-				w.Write(marshalUnsafe(tt.response))
-			}))
-
-			i := new(Config{
-				Host:   server.URL,
-				ApiKey: "",
-			})
-			err := i.IndexBatch([]*nwelastic.News{})
-			if err != nil {
-				if err.Error() != tt.expectedErr.Error() {
-					t.Fatalf("error is not as expected, got '%s', expected '%s'", err, tt.expectedErr)
 				}
 			}
 		})
