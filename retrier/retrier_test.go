@@ -1,11 +1,12 @@
-package retry
+package retrier
 
 import (
+	"testing"
+	"time"
+
 	"github.com/avast/retry-go/v4"
 	"github.com/pkg/errors"
 	"github.com/stretchr/testify/assert"
-	"testing"
-	"time"
 )
 
 func TestRetrier_RetryFunc(t *testing.T) {

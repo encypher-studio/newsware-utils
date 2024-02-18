@@ -3,12 +3,12 @@ module github.com/encypher-studio/newsware-utils
 go 1.22rc2
 
 require (
-	github.com/avast/retry-go/v4 v4.5.0
+	github.com/avast/retry-go/v4 v4.5.1
 	github.com/elastic/elastic-transport-go/v8 v8.0.0-20230329154755-1a3c63de0db6
 	github.com/elastic/go-elasticsearch/v8 v8.9.0
 	github.com/pkg/errors v0.9.1
 	github.com/prometheus/client_golang v1.16.0
-	github.com/stretchr/testify v1.8.2
+	github.com/stretchr/testify v1.8.4
 	go.elastic.co/ecszap v1.0.2
 	go.uber.org/zap v1.25.0
 	gopkg.in/natefinch/lumberjack.v2 v2.2.1

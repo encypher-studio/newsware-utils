@@ -1,8 +1,9 @@
-package retry
+package retrier
 
 import (
-	"github.com/avast/retry-go/v4"
 	"time"
+
+	"github.com/avast/retry-go/v4"
 )
 
 type Retrier struct {
