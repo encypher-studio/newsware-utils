@@ -12,8 +12,7 @@ jobs:
     - name: Checkout repo
       uses: actions/checkout@v3
     - name: Ping endpoint
-      run: curl "https://proxy.golang.org/github.com/$OWNER/$REPO/@v/$TAG.info"
+      run: curl "https://proxy.golang.org/github.com/$REPO/@v/$TAG.info"
       env:
-        TAG: ${{ github.ref }}
-        OWNER: ${{ github.repository_owner }}
+        TAG: ${{ github.ref_name }}
         REPO: ${{ github.repository }}
