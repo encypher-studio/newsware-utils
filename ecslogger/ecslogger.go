@@ -23,6 +23,7 @@ type ILogger interface {
 	Fatal(msg string, err error, fields ...zap.Field)
 	Error(msg string, err error, fields ...zap.Field)
 	Info(msg string, fields ...zap.Field)
+	Debug(msg string, fields ...zap.Field)
 	Log(level zapcore.Level, msg string, fields ...zap.Field)
 	Println(args ...interface{})
 }
@@ -91,6 +92,10 @@ func (l Logger) Error(msg string, err error, fields ...zap.Field) {
 
 func (l Logger) Info(msg string, fields ...zap.Field) {
 	l.Log(zapcore.InfoLevel, msg, fields...)
+}
+
+func (l Logger) Debug(msg string, fields ...zap.Field) {
+	l.Log(zapcore.DebugLevel, msg, fields...)
 }
 
 func (l Logger) Log(level zapcore.Level, msg string, fields ...zap.Field) {
