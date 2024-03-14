@@ -1,6 +1,6 @@
 package apierror
 
-import "github.com/encypher-studio/newsware-utils/response"
+import "github.com/encypher-studio/newsware-utils/api/response"
 
 type ApiError[T any] struct {
 	inner      error
