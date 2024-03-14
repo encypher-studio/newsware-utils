@@ -7,8 +7,8 @@ import (
 	"net/http/httptest"
 	"testing"
 
+	"github.com/encypher-studio/newsware-utils/api/response"
 	"github.com/encypher-studio/newsware-utils/nwelastic"
-	"github.com/encypher-studio/newsware-utils/response"
 )
 
 func init() {
