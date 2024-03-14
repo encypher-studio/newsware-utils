@@ -6,8 +6,9 @@ type IError interface {
 }
 
 type Response[T any, E any] struct {
-	Error *ResponseError[E] `json:"error,omitempty"`
-	Data  T                 `json:"data,omitempty"`
+	Error      *ResponseError[E] `json:"error,omitempty"`
+	Data       T                 `json:"data,omitempty"`
+	Pagination *Pagination       `json:"pagination,omitempty"`
 }
 
 type ResponseError[E any] struct {
@@ -16,10 +17,21 @@ type ResponseError[E any] struct {
 	Data    E      `json:"data,omitempty"`
 }
 
-func SuccessWithData[T any](data T) Response[T, *int] {
-	return Response[T, *int]{
+// Pagination contains data related to pagination for a request
+type Pagination struct {
+	Cursor interface{} `json:"cursor"`
+}
+
+func SuccessWithData[T any](data T, pagination ...Pagination) Response[T, *int] {
+	res := Response[T, *int]{
 		Data: data,
 	}
+
+	if len(pagination) > 0 {
+		res.Pagination = &pagination[0]
+	}
+
+	return res
 }
 
 func Success() Response[*int, *int] {
