@@ -19,7 +19,8 @@ type ResponseError[E any] struct {
 
 // Pagination contains data related to pagination for a request
 type Pagination struct {
-	Cursor interface{} `json:"cursor"`
+	Cursor interface{} `json:"cursor,omitempty"`
+	Total  *int        `json:"total,omitempty"`
 }
 
 func SuccessWithData[T any](data T, pagination ...Pagination) Response[T, *int] {
