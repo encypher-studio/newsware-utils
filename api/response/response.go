@@ -7,7 +7,7 @@ type IError interface {
 
 type Response[T any, E any] struct {
 	Error      *ResponseError[E] `json:"error,omitempty"`
-	Data       T                 `json:"data,omitempty"`
+	Data       *T                `json:"data,omitempty"`
 	Pagination *Pagination       `json:"pagination,omitempty"`
 }
 
@@ -25,7 +25,7 @@ type Pagination struct {
 
 func SuccessWithData[T any](data T, pagination ...Pagination) Response[T, *int] {
 	res := Response[T, *int]{
-		Data: data,
+		Data: &data,
 	}
 
 	if len(pagination) > 0 {
