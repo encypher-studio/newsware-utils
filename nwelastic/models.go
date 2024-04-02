@@ -1,10 +1,12 @@
 package nwelastic
 
 import (
+	"encoding/json"
+	"fmt"
 	"time"
 )
 
-// News describes a document that can be inserted to rethinkdb. Each field is commented with the sources it applies to.
+// News describes a document that can be inserted to ElasticSearch. Each field is commented with the sources it applies to.
 type News struct {
 	Id              string    `json:"id,omitempty"`
 	Headline        string    `json:"headline"`
@@ -22,4 +24,23 @@ type News struct {
 	Ciks []int `json:"ciks,omitempty"`
 	// Link only applies to SEC
 	Link string `json:"link,omitempty"`
+}
+
+func (n *News) UnmarshalJSON(data []byte) error {
+	type Alias News
+	aux := &struct {
+		Id interface{} `json:"id,omitempty"`
+		*Alias
+	}{
+		Alias: (*Alias)(n),
+	}
+
+	err := json.Unmarshal(data, &aux)
+	if err != nil {
+		return err
+	}
+
+	n.Id = fmt.Sprintf("%v", aux.Id)
+
+	return nil
 }
