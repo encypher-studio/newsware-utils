@@ -40,7 +40,9 @@ func (n *News) UnmarshalJSON(data []byte) error {
 		return err
 	}
 
-	n.Id = fmt.Sprintf("%v", aux.Id)
+	if aux.Id != nil {
+		n.Id = fmt.Sprintf("%v", aux.Id)
+	}
 
 	return nil
 }
