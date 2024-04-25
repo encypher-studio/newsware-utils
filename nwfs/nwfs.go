@@ -1,4 +1,4 @@
-package flyonthewall
+package nwfs
 
 import (
 	"context"
@@ -17,10 +17,10 @@ type NewFile struct {
 	ReceivedTime time.Time
 }
 
-type iFs interface {
+type IFs interface {
 	Watch(ctx context.Context, chanFiles chan NewFile) error
 	Delete(file string) error
-	Move(file string) error
+	Unprocessable(file string) error
 }
 
 type Fs struct {
