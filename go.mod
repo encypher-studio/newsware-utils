@@ -6,6 +6,7 @@ require (
 	github.com/avast/retry-go/v4 v4.5.1
 	github.com/elastic/elastic-transport-go/v8 v8.0.0-20230329154755-1a3c63de0db6
 	github.com/elastic/go-elasticsearch/v8 v8.9.0
+	github.com/fsnotify/fsnotify v1.7.0
 	github.com/gofiber/fiber/v2 v2.52.2
 	github.com/pkg/errors v0.9.1
 	github.com/prometheus/client_golang v1.16.0
