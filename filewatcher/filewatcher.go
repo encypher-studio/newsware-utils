@@ -11,7 +11,7 @@ import (
 	"go.uber.org/zap"
 )
 
-type ParseFunc func([]byte) (nwelastic.News, error)
+type ParseFunc func(newFile nwfs.NewFile) (nwelastic.News, error)
 
 type IIndexer interface {
 	Index(news *nwelastic.News) error
@@ -19,11 +19,10 @@ type IIndexer interface {
 
 // FileWatcher watches for new files in a directory, parses them using parseFunc and indexes them using indexer. If PreIndexProcessor is set, it is called before indexing.
 type FileWatcher struct {
-	fs           nwfs.IFs
-	indexer      IIndexer
-	logger       ecslogger.ILogger
-	parseFunc    ParseFunc
-	PreIndexHook func(newFile nwfs.NewFile, news *nwelastic.News) error
+	fs        nwfs.IFs
+	indexer   IIndexer
+	logger    ecslogger.ILogger
+	parseFunc ParseFunc
 }
 
 // New creates a new Fly instance.
@@ -52,7 +51,7 @@ func (f *FileWatcher) Run() {
 			f.logger.Info("file received for processing", zap.String("name", newFile.Name))
 			// Process asynchronously
 			go func() {
-				news, err := f.parseFunc(newFile.Bytes)
+				news, err := f.parseFunc(newFile)
 				if err != nil {
 					// Move file to unprocessable directory
 					f.logger.Error("parsing news", err)
@@ -64,14 +63,6 @@ func (f *FileWatcher) Run() {
 				}
 
 				news.ReceivedTime = newFile.ReceivedTime
-
-				if f.PreIndexHook != nil {
-					err = f.PreIndexHook(newFile, &news)
-					if err != nil {
-						f.logger.Error("pre-index processing", err)
-						return
-					}
-				}
 
 				err = f.indexer.Index(&news)
 				if err != nil {
