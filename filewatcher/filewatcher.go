@@ -17,12 +17,13 @@ type IIndexer interface {
 	Index(news *nwelastic.News) error
 }
 
-// FileWatcher watches for new files in a directory, parses them using parseFunc and indexes them using indexer.
+// FileWatcher watches for new files in a directory, parses them using parseFunc and indexes them using indexer. If PreIndexProcessor is set, it is called before indexing.
 type FileWatcher struct {
-	fs        nwfs.IFs
-	indexer   IIndexer
-	logger    ecslogger.ILogger
-	parseFunc ParseFunc
+	fs           nwfs.IFs
+	indexer      IIndexer
+	logger       ecslogger.ILogger
+	parseFunc    ParseFunc
+	PreIndexHook func(newFile nwfs.NewFile, news *nwelastic.News) error
 }
 
 // New creates a new Fly instance.
@@ -62,7 +63,15 @@ func (f *FileWatcher) Run() {
 					return
 				}
 
-				news.PublicationTime = newFile.ReceivedTime
+				news.ReceivedTime = newFile.ReceivedTime
+
+				if f.PreIndexHook != nil {
+					err = f.PreIndexHook(newFile, &news)
+					if err != nil {
+						f.logger.Error("pre-index processing", err)
+						return
+					}
+				}
 
 				err = f.indexer.Index(&news)
 				if err != nil {

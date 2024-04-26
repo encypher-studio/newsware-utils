@@ -55,11 +55,13 @@ func (m *mockFs) Unprocessable(file string) error {
 }
 
 type mockIndexer struct {
-	indexCalls int
-	rets       []error
+	indexCalls   int
+	rets         []error
+	argIndexNews *nwelastic.News
 }
 
 func (m *mockIndexer) Index(news *nwelastic.News) error {
+	m.argIndexNews = news
 	m.indexCalls++
 	if m.indexCalls > len(m.rets) {
 		return nil

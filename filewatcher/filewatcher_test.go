@@ -1,6 +1,7 @@
 package filewatcher
 
 import (
+	"encoding/json"
 	"errors"
 	"testing"
 	"time"
@@ -9,7 +10,7 @@ import (
 	"github.com/encypher-studio/newsware-utils/nwfs"
 )
 
-func TestFly_Run(t *testing.T) {
+func TestFileWatcher_Run(t *testing.T) {
 	type runRets struct {
 		sendWatchErr bool
 		retParse     error
@@ -121,4 +122,57 @@ func TestFly_Run(t *testing.T) {
 			}
 		})
 	}
+}
+
+func TestFileWatcher_Run_PreIndexHook(t *testing.T) {
+	original := nwelastic.News{}
+	tests := []struct {
+		name         string
+		preIndexHook func(nwfs.NewFile, *nwelastic.News) error
+		expected     nwelastic.News
+	}{
+		{
+			name:     "do nothing",
+			expected: original,
+		},
+		{
+			name: "change attribute",
+			preIndexHook: func(f nwfs.NewFile, news *nwelastic.News) error {
+				news.Body = "new body"
+				return nil
+			},
+			expected: nwelastic.News{
+				Body: "new body",
+			},
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			mockIndexer := &mockIndexer{}
+			f := FileWatcher{
+				fs:      NewMockFs(),
+				indexer: mockIndexer,
+				logger:  mockLogger{},
+				parseFunc: func([]byte) (nwelastic.News, error) {
+					return original, nil
+				},
+			}
+
+			f.PreIndexHook = tt.preIndexHook
+			go f.Run()
+
+			f.fs.(*mockFs).sendChanFiles <- nwfs.NewFile{}
+			time.Sleep(10 * time.Millisecond)
+
+			if marshalUnsafe(mockIndexer.argIndexNews) != marshalUnsafe(tt.expected) {
+				t.Fatalf("Index() = %s, expected %s", marshalUnsafe(mockIndexer.argIndexNews), marshalUnsafe(tt.expected))
+			}
+		})
+	}
+}
+
+func marshalUnsafe(v interface{}) string {
+	b, _ := json.Marshal(v)
+	return string(b)
 }
