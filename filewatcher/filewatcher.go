@@ -49,6 +49,7 @@ func (f *FileWatcher) Run() {
 		select {
 		case newFile := <-chanFiles:
 			f.logger.Info("file received for processing", zap.String("name", newFile.Name))
+			f.logger.Debug("file received", zap.String("data", string(newFile.Bytes)))
 			// Process asynchronously
 			go func() {
 				news, err := f.parseFunc(newFile)
