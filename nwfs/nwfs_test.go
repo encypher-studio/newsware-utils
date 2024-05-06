@@ -6,6 +6,7 @@ import (
 	"math/rand"
 	"os"
 	"path"
+	"slices"
 	"strconv"
 	"testing"
 	"time"
@@ -107,15 +108,21 @@ func TestFs_Watch(t *testing.T) {
 				}
 			}
 
-			currentFile := 0
 			for {
 				select {
 				case actualFile := <-chanFiles:
-					if currentFile >= len(tt.expected) {
-						t.Fatalf("received more files than expected")
+					var expectedFile *NewFile
+					for i, file := range tt.expected {
+						if file.Name == actualFile.Name {
+							expectedFile = &file
+							tt.expected = slices.Delete(tt.expected, i, i+1)
+							break
+						}
 					}
 
-					expectedFile := tt.expected[currentFile]
+					if expectedFile == nil {
+						t.Fatalf("unexpected file %s", actualFile.Name)
+					}
 
 					if actualFile.Name != expectedFile.Name {
 						t.Fatalf("expected file name %s, got %s", expectedFile.Name, actualFile.Name)
@@ -132,8 +139,7 @@ func TestFs_Watch(t *testing.T) {
 						t.Fatalf("expected file received time not within expected error %s, got %s", expectedFile.ReceivedTime, actualFile.ReceivedTime)
 					}
 
-					currentFile++
-					if currentFile == len(tt.expected) {
+					if len(tt.expected) == 0 {
 						return
 					}
 				case err := <-chanErr:

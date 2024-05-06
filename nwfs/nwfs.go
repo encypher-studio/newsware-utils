@@ -2,8 +2,10 @@ package nwfs
 
 import (
 	"context"
+	"math"
 	"os"
 	"path"
+	"sync"
 	"time"
 
 	"github.com/encypher-studio/newsware-utils/ecslogger"
@@ -33,9 +35,84 @@ func NewFs(dir string, logger ecslogger.ILogger) Fs {
 	return Fs{dir: dir, logger: logger}
 }
 
-// Watch watches the directory for new files and sends them to the channel
+// Watch watches the directory for new files and sends them to the channel, it also processes existing files.
+// Files are uploaded after 100ms without a WRITE or CREATE event.
 func (f Fs) Watch(ctx context.Context, chanFiles chan NewFile) error {
-	// Find any existing files
+	// Process existing files
+	err := f.processExistingFiles(chanFiles)
+	if err != nil {
+		return err
+	}
+
+	// Watch for new files
+	var mu sync.Mutex
+	timers := make(map[string]*time.Timer)
+
+	fsWatcher, err := fsnotify.NewWatcher()
+	if err != nil {
+		return err
+	}
+	defer fsWatcher.Close()
+
+	err = fsWatcher.Add(f.dir)
+	if err != nil {
+		return err
+	}
+
+	for {
+		select {
+		case event, ok := <-fsWatcher.Events:
+			if !ok {
+				return nil
+			}
+
+			if !event.Has(fsnotify.Create) && !event.Has(fsnotify.Write) {
+				continue
+			}
+
+			// Get timer for this file
+			mu.Lock()
+			t, ok := timers[event.Name]
+			mu.Unlock()
+
+			// Create timer if doesn't exist
+			if !ok {
+				t = time.AfterFunc(math.MaxInt64, func() {
+					defer func() {
+						mu.Lock()
+						delete(timers, event.Name)
+						mu.Unlock()
+					}()
+
+					filename := path.Base(event.Name)
+					f.logger.Info("new file detected", zap.String("file", filename))
+					bytes, err := os.ReadFile(path.Join(f.dir, filename))
+					if err != nil {
+						fsWatcher.Events <- event
+						return
+					}
+
+					chanFiles <- NewFile{Name: filename, Bytes: bytes, ReceivedTime: time.Now().UTC()}
+				})
+				t.Stop()
+
+				mu.Lock()
+				timers[event.Name] = t
+				mu.Unlock()
+			}
+
+			// Start timer
+			t.Reset(time.Millisecond * 100)
+		case err, ok := <-fsWatcher.Errors:
+			if !ok {
+				return nil
+			}
+			return err
+		}
+	}
+}
+
+func (f Fs) processExistingFiles(chanFiles chan NewFile) error {
 	files, err := os.ReadDir(f.dir)
 	if err != nil {
 		return err
@@ -60,40 +137,7 @@ func (f Fs) Watch(ctx context.Context, chanFiles chan NewFile) error {
 		chanFiles <- NewFile{Name: file.Name(), Bytes: bytes, ReceivedTime: info.ModTime().UTC()}
 	}
 
-	// Watch for new files
-	fsWatcher, err := fsnotify.NewWatcher()
-	if err != nil {
-		return err
-	}
-	defer fsWatcher.Close()
-
-	err = fsWatcher.Add(f.dir)
-	if err != nil {
-		return err
-	}
-
-	for {
-		select {
-		case event := <-fsWatcher.Events:
-			if event.Has(fsnotify.Create) {
-				filename := path.Base(event.Name)
-				f.logger.Info("new file detected", zap.String("file", filename))
-				bytes, err := os.ReadFile(path.Join(f.dir, filename))
-				if err != nil {
-					return err
-				}
-
-				chanFiles <- NewFile{Name: filename, Bytes: bytes, ReceivedTime: time.Now().UTC()}
-			}
-		case err, ok := <-fsWatcher.Errors:
-			if !ok {
-				return err
-			}
-			return err
-		case <-ctx.Done():
-			return nil
-		}
-	}
+	return nil
 }
 
 // Delete deletes a file from the directory
