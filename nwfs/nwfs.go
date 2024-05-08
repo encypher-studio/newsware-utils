@@ -102,7 +102,7 @@ func (f Fs) Watch(ctx context.Context, chanFiles chan NewFile) error {
 			}
 
 			// Start timer
-			t.Reset(time.Millisecond * 100)
+			t.Reset(time.Millisecond * 200)
 		case err, ok := <-fsWatcher.Errors:
 			if !ok {
 				return nil
