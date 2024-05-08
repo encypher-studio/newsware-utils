@@ -48,17 +48,17 @@ func (f *FileWatcher) Run() {
 	for {
 		select {
 		case newFile := <-chanFiles:
-			f.logger.Info("file received for processing", zap.String("name", newFile.Name))
-			f.logger.Debug("file received", zap.String("data", string(newFile.Bytes)))
+			f.logger.Info("file received for processing", zap.String("file", newFile.Name))
+			f.logger.Debug("file received", zap.String("file", newFile.Name), zap.String("data", string(newFile.Bytes)))
 			// Process asynchronously
 			go func() {
 				news, err := f.parseFunc(newFile)
 				if err != nil {
 					// Move file to unprocessable directory
-					f.logger.Error("parsing news", err)
+					f.logger.Error("parsing news", err, zap.String("file", newFile.Name))
 					err = f.fs.Unprocessable(newFile.Name)
 					if err != nil {
-						f.logger.Error("moving file to unprocessable directory", err)
+						f.logger.Error("moving file to unprocessable directory", err, zap.String("file", newFile.Name))
 					}
 					return
 				}
@@ -68,18 +68,18 @@ func (f *FileWatcher) Run() {
 				err = f.indexer.Index(&news)
 				if err != nil {
 					// Send file again to the channel, so it can be processed again
-					f.logger.Error("indexing news", err)
+					f.logger.Error("indexing news", err, zap.String("file", newFile.Name))
 					chanFiles <- newFile
 					return
 				}
 
-				f.logger.Info("file indexed", zap.String("name", newFile.Name))
+				f.logger.Info("file indexed", zap.String("file", newFile.Name))
 
 				err = f.fs.Delete(newFile.Name)
 				if err != nil {
-					f.logger.Error("deleting indexed file", err)
+					f.logger.Error("deleting indexed file", err, zap.String("file", newFile.Name))
 				} else {
-					f.logger.Info("file deleted", zap.String("name", newFile.Name))
+					f.logger.Info("file deleted", zap.String("file", newFile.Name))
 				}
 
 				indexmetrics.MetricDocumentsIndexed.WithLabelValues().Inc()
