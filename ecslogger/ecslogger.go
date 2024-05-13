@@ -107,5 +107,4 @@ func (l Logger) Log(level zapcore.Level, msg string, fields ...zap.Field) {
 }
 
 func (l Logger) Println(args ...interface{}) {
-	l.Println(args)
 }
