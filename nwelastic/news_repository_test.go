@@ -45,7 +45,6 @@ func (r *newsRepositorySuite) SetupSuite() {
 	}
 
 	_, _ = r.newsRepository.elastic.typedClient.Indices.Delete(r.newsRepository.Index).Do(nil)
-	_, _ = r.newsRepository.elastic.typedClient.Indices.Delete(r.newsRepository.sequence.sequenceIndex).Do(nil)
 }
 
 func (r *newsRepositorySuite) SetupSubTest() {
@@ -53,19 +52,10 @@ func (r *newsRepositorySuite) SetupSubTest() {
 	if err != nil {
 		r.FailNow(err.Error())
 	}
-	_, err = r.newsRepository.elastic.typedClient.Indices.Create(r.newsRepository.sequence.sequenceIndex).Do(nil)
-	if err != nil {
-		r.FailNow(err.Error())
-	}
 }
 
 func (r *newsRepositorySuite) TearDownSubTest() {
 	_, err := r.newsRepository.elastic.typedClient.Indices.Delete(r.newsRepository.Index).Do(nil)
-	if err != nil {
-		r.FailNow(err.Error())
-	}
-
-	_, err = r.newsRepository.elastic.typedClient.Indices.Delete(r.newsRepository.sequence.sequenceIndex).Do(nil)
 	if err != nil {
 		r.FailNow(err.Error())
 	}

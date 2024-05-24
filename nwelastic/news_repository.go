@@ -21,9 +21,8 @@ type Repository interface {
 }
 
 type NewsRepository struct {
-	elastic  Elastic
-	Index    string // Defaults to "news"
-	sequence Sequence
+	elastic Elastic
+	Index   string // Defaults to "news"
 }
 
 // NewNewsRepository creates a NewsRepository, if the context is a test, an index other than "news" must be passed otherwise it will fail.
@@ -42,15 +41,9 @@ func NewNewsRepository(elastic Elastic, sequenceIndex ...string) (NewsRepository
 		return NewsRepository{}, err
 	}
 
-	sequence, err := NewSequence(elastic, elastic.Config.NewsIndex, sequenceIndex...)
-	if err != nil {
-		return NewsRepository{}, err
-	}
-
 	return NewsRepository{
-		Index:    elastic.Config.NewsIndex,
-		elastic:  elastic,
-		sequence: sequence,
+		Index:   elastic.Config.NewsIndex,
+		elastic: elastic,
 	}, nil
 }
 
