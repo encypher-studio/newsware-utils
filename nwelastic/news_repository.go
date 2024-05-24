@@ -26,7 +26,7 @@ type NewsRepository struct {
 }
 
 // NewNewsRepository creates a NewsRepository, if the context is a test, an index other than "news" must be passed otherwise it will fail.
-func NewNewsRepository(elastic Elastic, sequenceIndex ...string) (NewsRepository, error) {
+func NewNewsRepository(elastic Elastic) (NewsRepository, error) {
 	if flag.Lookup("test.v") != nil && elastic.Config.NewsIndex == "news" {
 		return NewsRepository{}, errors.New("can't use index 'news' for tests")
 	}

@@ -39,7 +39,7 @@ type newsRepositorySuite struct {
 func (r *newsRepositorySuite) SetupSuite() {
 	var err error
 	elastic := NewElastic(TestElasticConfig)
-	r.newsRepository, err = NewNewsRepository(elastic, "sequence_tests")
+	r.newsRepository, err = NewNewsRepository(elastic)
 	if err != nil {
 		r.FailNow(err.Error())
 	}

@@ -51,7 +51,7 @@ func (n *nwElasticSuite) SetupSuite() {
 	elasticConfig.NewsIndex = strconv.Itoa(rand.Int())
 	n.elastic = NewElastic(elasticConfig)
 	n.elastic.StartTypedClient()
-	n.newsRepository, err = NewNewsRepository(n.elastic, "sequence_test")
+	n.newsRepository, err = NewNewsRepository(n.elastic)
 	if err != nil {
 		n.FailNow(err.Error())
 	}
