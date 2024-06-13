@@ -2,3 +2,8 @@
 indexer:
   host: http://localhost:8080
   apiKey: example-api-key
+
+nats:
+  url: nats://localhost:4222 # URL to connect to NATS
+  token: secret-auth-key # Token to authenticate with NATS
+  bucket: news-test # Subject to publish news on
