@@ -118,6 +118,8 @@ func (l *NatsProcessor) Listen(ctx context.Context, onMsgProcessed ...func(*nats
 					msg.Nak()
 					return
 				}
+
+				msg.Ack()
 			}()
 		case <-ctx.Done():
 			return nil
