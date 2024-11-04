@@ -5,6 +5,8 @@ import (
 	"math"
 	"os"
 	"path"
+	"path/filepath"
+	"strings"
 	"sync"
 	"time"
 
@@ -39,7 +41,7 @@ func NewFs(dir string, logger ecslogger.ILogger) Fs {
 // Files are uploaded after 100ms without a WRITE or CREATE event.
 func (f Fs) Watch(ctx context.Context, chanFiles chan NewFile) error {
 	// Process existing files
-	err := f.processExistingFiles(chanFiles)
+	err := f.processExistingFiles(f.dir, chanFiles)
 	if err != nil {
 		return err
 	}
@@ -112,29 +114,33 @@ func (f Fs) Watch(ctx context.Context, chanFiles chan NewFile) error {
 	}
 }
 
-func (f Fs) processExistingFiles(chanFiles chan NewFile) error {
-	files, err := os.ReadDir(f.dir)
+func (f Fs) processExistingFiles(path string, chanFiles chan NewFile) error {
+	files, err := os.ReadDir(path)
 	if err != nil {
 		return err
 	}
 
-	f.logger.Info("existing files", zap.Int("count", len(files)))
 	for _, file := range files {
+		filePath := filepath.Join(path, file.Name())
+		relativePath := strings.Trim(filePath, f.dir)
+
 		if file.IsDir() {
-			continue
-		}
-		f.logger.Info("new file found", zap.String("file", file.Name()))
-		bytes, err := os.ReadFile(path.Join(f.dir, file.Name()))
-		if err != nil {
-			return err
-		}
+			f.processExistingFiles(filePath, chanFiles)
+		} else {
+			f.logger.Info("new file found", zap.String("file", relativePath))
 
-		info, err := file.Info()
-		if err != nil {
-			return err
-		}
+			bytes, err := os.ReadFile(filePath)
+			if err != nil {
+				return err
+			}
+	
+			info, err := file.Info()
+			if err != nil {
+				return err
+			}
 
-		chanFiles <- NewFile{Name: file.Name(), Bytes: bytes, ReceivedTime: info.ModTime().UTC()}
+			chanFiles <- NewFile{Name: file.Name(), Bytes: bytes, ReceivedTime: info.ModTime().UTC()}
+		}
 	}
 
 	return nil
