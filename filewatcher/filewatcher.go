@@ -77,9 +77,9 @@ func (f *FileWatcher) Run() {
 
 				err = f.fs.Delete(newFile)
 				if err != nil {
-					f.logger.Error("deleting indexed file", err, zap.String("file", newFile.Name))
+					f.logger.Error("deleting indexed file", err, zap.String("file", newFile.Path))
 				} else {
-					f.logger.Info("file deleted", zap.String("file", newFile.Name))
+					f.logger.Info("file deleted", zap.String("file", newFile.Path))
 				}
 
 				indexmetrics.MetricDocumentsIndexed.WithLabelValues().Inc()

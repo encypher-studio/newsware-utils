@@ -135,7 +135,7 @@ func (f Fs) processExistingFiles(path string, chanFiles chan NewFile) error {
 		if file.IsDir() {
 			f.processExistingFiles(filePath, chanFiles)
 		} else {
-			f.logger.Info("new file found", zap.String("file", relativePath))
+			f.logger.Info("new file found", zap.String("file", filePath))
 
 			bytes, err := os.ReadFile(filePath)
 			if err != nil {
