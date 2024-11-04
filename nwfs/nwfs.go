@@ -139,6 +139,7 @@ func (f Fs) processExistingFiles(path string, chanFiles chan NewFile) error {
 
 			bytes, err := os.ReadFile(filePath)
 			if err != nil {
+
 				return err
 			}
 
