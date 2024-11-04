@@ -25,8 +25,8 @@ type NewFile struct {
 
 type IFs interface {
 	Watch(ctx context.Context, chanFiles chan NewFile) error
-	Delete(file string) error
-	Unprocessable(file string) error
+	Delete(file NewFile) error
+	Unprocessable(file NewFile) error
 }
 
 type Fs struct {
@@ -161,11 +161,11 @@ func (f Fs) processExistingFiles(path string, chanFiles chan NewFile) error {
 }
 
 // Delete deletes a file from the directory
-func (f Fs) Delete(file string) error {
-	return os.Remove(path.Join(f.dir, file))
+func (f Fs) Delete(file NewFile) error {
+	return os.Remove(file.Path)
 }
 
 // Unprocessable moves a file to unprocessable directory
-func (f Fs) Unprocessable(file string) error {
-	return os.Rename(path.Join(f.dir, file), path.Join(f.dir, "unprocessable", file))
+func (f Fs) Unprocessable(file NewFile) error {
+	return os.Rename(file.Path, path.Join(f.dir, "unprocessable", file.RelativePath))
 }

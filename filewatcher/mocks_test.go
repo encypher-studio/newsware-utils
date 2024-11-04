@@ -45,11 +45,11 @@ func (m *mockFs) Watch(ctx context.Context, chanFiles chan nwfs.NewFile) error {
 
 	}
 }
-func (m *mockFs) Delete(file string) error {
+func (m *mockFs) Delete(file nwfs.NewFile) error {
 	m.deleteCalls++
 	return nil
 }
-func (m *mockFs) Unprocessable(file string) error {
+func (m *mockFs) Unprocessable(file nwfs.NewFile) error {
 	m.moveCalls++
 	return nil
 }

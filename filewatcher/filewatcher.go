@@ -56,7 +56,7 @@ func (f *FileWatcher) Run() {
 				if err != nil {
 					// Move file to unprocessable directory
 					f.logger.Error("parsing news", err, zap.String("file", newFile.Name))
-					err = f.fs.Unprocessable(newFile.Name)
+					err = f.fs.Unprocessable(newFile)
 					if err != nil {
 						f.logger.Error("moving file to unprocessable directory", err, zap.String("file", newFile.Name))
 					}
@@ -75,7 +75,7 @@ func (f *FileWatcher) Run() {
 
 				f.logger.Info("file indexed", zap.String("file", newFile.Name))
 
-				err = f.fs.Delete(newFile.Name)
+				err = f.fs.Delete(newFile)
 				if err != nil {
 					f.logger.Error("deleting indexed file", err, zap.String("file", newFile.Name))
 				} else {
