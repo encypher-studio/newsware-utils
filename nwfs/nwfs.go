@@ -17,6 +17,8 @@ import (
 
 type NewFile struct {
 	Name         string
+	Path         string
+	RelativePath string
 	Bytes        []byte
 	ReceivedTime time.Time
 }
@@ -94,7 +96,13 @@ func (f Fs) Watch(ctx context.Context, chanFiles chan NewFile) error {
 						return
 					}
 
-					chanFiles <- NewFile{Name: filename, Bytes: bytes, ReceivedTime: time.Now().UTC()}
+					chanFiles <- NewFile{
+						Name:         filename,
+						Path:         event.Name,
+						RelativePath: strings.Trim(event.Name, f.dir),
+						Bytes:        bytes,
+						ReceivedTime: time.Now().UTC(),
+					}
 				})
 				t.Stop()
 
@@ -133,13 +141,19 @@ func (f Fs) processExistingFiles(path string, chanFiles chan NewFile) error {
 			if err != nil {
 				return err
 			}
-	
+
 			info, err := file.Info()
 			if err != nil {
 				return err
 			}
 
-			chanFiles <- NewFile{Name: file.Name(), Bytes: bytes, ReceivedTime: info.ModTime().UTC()}
+			chanFiles <- NewFile{
+				Name:         file.Name(),
+				Path:         filePath,
+				RelativePath: relativePath,
+				Bytes:        bytes,
+				ReceivedTime: info.ModTime().UTC(),
+			}
 		}
 	}
 
