@@ -88,16 +88,26 @@ func (f Fs) Watch(ctx context.Context, chanFiles chan NewFile) error {
 						mu.Unlock()
 					}()
 
-					filename := path.Base(event.Name)
-					f.logger.Info("new file detected", zap.String("file", filename))
-					bytes, err := os.ReadFile(path.Join(f.dir, filename))
+					info, err := os.Stat(event.Name)
+					if err != nil {
+						fsWatcher.Events <- event
+						return
+					}
+
+					if info.IsDir() {
+						return
+					}
+
+					f.logger.Info("new file detected", zap.String("file", event.Name))
+
+					bytes, err := os.ReadFile(event.Name)
 					if err != nil {
 						fsWatcher.Events <- event
 						return
 					}
 
 					chanFiles <- NewFile{
-						Name:         filename,
+						Name:         filepath.Base(event.Name),
 						Path:         event.Name,
 						RelativePath: strings.Trim(event.Name, f.dir),
 						Bytes:        bytes,
