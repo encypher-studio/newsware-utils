@@ -32,9 +32,10 @@ type IFs interface {
 }
 
 type Fs struct {
-	dir        string
-	logger     ecslogger.ILogger
-	ignoreDirs []string
+	dir          string
+	logger       ecslogger.ILogger
+	ignoreDirs   []string
+	eventRetries map[string]int
 }
 
 // NewFs creates a new Fs instance.
@@ -46,7 +47,7 @@ func NewFs(dir string, ignoreDirs []string, logger ecslogger.ILogger) Fs {
 		ignoreDirs[i] = filepath.Clean(dir)
 	}
 
-	return Fs{dir: dir, ignoreDirs: ignoreDirs, logger: logger}
+	return Fs{dir: dir, ignoreDirs: ignoreDirs, logger: logger, eventRetries: make(map[string]int)}
 }
 
 // Watch watches the directory for top and nested new files and sends them to the channel, it also processes existing files.
@@ -86,6 +87,12 @@ func (f Fs) Watch(ctx context.Context, chanFiles chan NewFile) error {
 			if !ok {
 				f.logger.Info("fsWatcher.Events channel closed")
 				return nil
+			}
+
+			f.eventRetries[event.Name]++
+			if f.eventRetries[event.Name] > 10 {
+				f.logger.Error("event retry limit reached", nil, zap.String("file", event.Name))
+				continue
 			}
 
 			if !event.Has(fsnotify.Create) && !event.Has(fsnotify.Write) {
