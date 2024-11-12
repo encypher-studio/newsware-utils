@@ -3,6 +3,7 @@ package nwelastic
 import (
 	"context"
 	"encoding/json"
+	"os"
 	"testing"
 	"time"
 
@@ -327,9 +328,11 @@ func (r *newsRepositorySuite) TestNewsRepository_Insert() {
 }
 
 func TestNewsRepositorySuite(t *testing.T) {
-	if testing.Short() {
-		t.Skip("Skip test for news repository")
+	integration := os.Getenv("INTEGRATION")
+	if integration == "" {
+		t.Skip("skipping: set INTEGRATION env to run this test")
 	}
+
 	suite.Run(t, new(newsRepositorySuite))
 }
 

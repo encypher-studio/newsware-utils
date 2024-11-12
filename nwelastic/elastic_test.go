@@ -3,6 +3,7 @@ package nwelastic
 import (
 	"encoding/json"
 	"math/rand"
+	"os"
 	"strconv"
 	"testing"
 	"time"
@@ -100,8 +101,10 @@ func (n *nwElasticSuite) TestGet() {
 }
 
 func TestNwElasticSuite(t *testing.T) {
-	if testing.Short() {
-		t.Skip("Skip integration tests for nwelastic")
+	integration := os.Getenv("INTEGRATION")
+	if integration == "" {
+		t.Skip("skipping: set INTEGRATION env to run this test")
 	}
+
 	suite.Run(t, new(nwElasticSuite))
 }
