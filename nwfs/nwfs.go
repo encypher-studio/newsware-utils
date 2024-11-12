@@ -113,12 +113,7 @@ func (f Fs) Watch(ctx context.Context, chanFiles chan NewFile) error {
 					continue
 				}
 
-				f.logger.Info("directory detected, adding to watch list", zap.String("name", event.Name))
-				err := fsWatcher.Add(event.Name)
-				if err != nil {
-					f.logger.Error("adding directory to watch list", err, zap.String("name", event.Name))
-					fsWatcher.Events <- event
-				}
+				f.logger.Info("new directory detected", zap.String("name", event.Name))
 
 				// Add nested directories created after the parent directory
 				// If the directory is the root directory, ignore all directories in the ignoreDirs list
@@ -134,6 +129,7 @@ func (f Fs) Watch(ctx context.Context, chanFiles chan NewFile) error {
 				}
 
 				for _, dir := range dirs {
+					f.logger.Info("adding directory to watch list", zap.String("name", dir))
 					err = fsWatcher.Add(dir)
 					if err != nil {
 						f.logger.Error("adding directory to watch list", err, zap.String("name", dir))
