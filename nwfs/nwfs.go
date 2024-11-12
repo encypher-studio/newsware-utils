@@ -58,6 +58,7 @@ func (f Fs) Watch(ctx context.Context, chanFiles chan NewFile) error {
 	}
 	defer fsWatcher.Close()
 
+	f.logger.Info("watching directory", zap.String("dir", f.dir))
 	err = fsWatcher.Add(f.dir)
 	if err != nil {
 		return err
@@ -67,6 +68,7 @@ func (f Fs) Watch(ctx context.Context, chanFiles chan NewFile) error {
 		select {
 		case event, ok := <-fsWatcher.Events:
 			if !ok {
+				f.logger.Info("fsWatcher.Events channel closed")
 				return nil
 			}
 
@@ -90,11 +92,13 @@ func (f Fs) Watch(ctx context.Context, chanFiles chan NewFile) error {
 
 					info, err := os.Stat(event.Name)
 					if err != nil {
+						f.logger.Error("getting file info", err, zap.String("file", event.Name))
 						fsWatcher.Events <- event
 						return
 					}
 
 					if info.IsDir() {
+						f.logger.Info("directory detected, skipping", zap.String("name", event.Name))
 						return
 					}
 
@@ -111,7 +115,7 @@ func (f Fs) Watch(ctx context.Context, chanFiles chan NewFile) error {
 						Path:         event.Name,
 						RelativePath: strings.Trim(event.Name, f.dir),
 						Bytes:        bytes,
-						ReceivedTime: time.Now().UTC(),
+						ReceivedTime: info.ModTime().UTC(),
 					}
 				})
 				t.Stop()
