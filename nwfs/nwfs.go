@@ -2,10 +2,12 @@ package nwfs
 
 import (
 	"context"
+	"fmt"
 	"math"
 	"os"
 	"path"
 	"path/filepath"
+	"slices"
 	"strings"
 	"sync"
 	"time"
@@ -30,20 +32,33 @@ type IFs interface {
 }
 
 type Fs struct {
-	dir    string
-	logger ecslogger.ILogger
+	dir        string
+	logger     ecslogger.ILogger
+	ignoreDirs []string
 }
 
 // NewFs creates a new Fs instance.
-func NewFs(dir string, logger ecslogger.ILogger) Fs {
-	return Fs{dir: dir, logger: logger}
+func NewFs(dir string, ignoreDirs []string, logger ecslogger.ILogger) Fs {
+	ignoreDirs = append(ignoreDirs, "unprocessable")
+	ignoreDirs = append(ignoreDirs, "redirect")
+
+	for i, dir := range ignoreDirs {
+		ignoreDirs[i] = filepath.Clean(dir)
+	}
+
+	return Fs{dir: dir, ignoreDirs: ignoreDirs, logger: logger}
 }
 
-// Watch watches the directory for new files and sends them to the channel, it also processes existing files.
+// Watch watches the directory for top and nested new files and sends them to the channel, it also processes existing files.
 // Files are uploaded after 100ms without a WRITE or CREATE event.
 func (f Fs) Watch(ctx context.Context, chanFiles chan NewFile) error {
 	// Process existing files
-	err := f.processExistingFiles(f.dir, chanFiles)
+	dirs, err := findValidDirs(f.dir, f.ignoreDirs)
+	if err != nil {
+		return err
+	}
+
+	err = f.processExistingFiles(dirs, chanFiles)
 	if err != nil {
 		return err
 	}
@@ -58,10 +73,11 @@ func (f Fs) Watch(ctx context.Context, chanFiles chan NewFile) error {
 	}
 	defer fsWatcher.Close()
 
-	f.logger.Info("watching directory", zap.String("dir", f.dir))
-	err = fsWatcher.Add(f.dir)
-	if err != nil {
-		return err
+	for _, dir := range dirs {
+		err = fsWatcher.Add(dir)
+		if err != nil {
+			return fmt.Errorf("adding directory to watch list: %w", err)
+		}
 	}
 
 	for {
@@ -100,7 +116,36 @@ func (f Fs) Watch(ctx context.Context, chanFiles chan NewFile) error {
 					}
 
 					if info.IsDir() {
-						f.logger.Info("directory detected, skipping", zap.String("name", event.Name))
+						f.logger.Info("directory detected, adding to watch list", zap.String("name", event.Name))
+						err := fsWatcher.Add(event.Name)
+						if err != nil {
+							f.logger.Error("adding directory to watch list", err, zap.String("name", event.Name))
+							fsWatcher.Events <- event
+						}
+
+						// Add nested directories created after the parent directory
+						// If the directory is the root directory, ignore all directories in the ignoreDirs list
+						ignoreDirs := []string{}
+						if filepath.Dir(event.Name) == filepath.Clean(f.dir) {
+							ignoreDirs = f.ignoreDirs
+						}
+						dirs, err := findValidDirs(event.Name, ignoreDirs)
+						if err != nil {
+							f.logger.Error("finding valid directories", err, zap.String("name", event.Name))
+							fsWatcher.Events <- event
+							return
+						}
+
+						for _, dir := range dirs {
+							err = fsWatcher.Add(dir)
+							if err != nil {
+								f.logger.Error("adding directory to watch list", err, zap.String("name", dir))
+								fsWatcher.Events <- event
+							}
+						}
+
+						// Process any files uploaded while the directory was being added
+						f.processExistingFiles(dirs, chanFiles)
 						return
 					}
 
@@ -138,20 +183,23 @@ func (f Fs) Watch(ctx context.Context, chanFiles chan NewFile) error {
 	}
 }
 
-func (f Fs) processExistingFiles(path string, chanFiles chan NewFile) error {
-	files, err := os.ReadDir(path)
-	if err != nil {
-		return err
-	}
+func (f Fs) processExistingFiles(dirs []string, chanFiles chan NewFile) error {
+	for _, dir := range dirs {
+		f.logger.Info("looking for files", zap.String("dir", dir))
+		files, err := os.ReadDir(dir)
+		if err != nil {
+			return err
+		}
 
-	for _, file := range files {
-		filePath := filepath.Join(path, file.Name())
-		relativePath := strings.Trim(filePath, f.dir)
+		for _, file := range files {
+			if file.IsDir() {
+				continue
+			}
 
-		if file.IsDir() {
-			f.processExistingFiles(filePath, chanFiles)
-		} else {
-			f.logger.Info("new file found", zap.String("file", filePath))
+			filePath := filepath.Join(dir, file.Name())
+			relativePath := strings.Trim(filePath, f.dir)
+
+			f.logger.Info("file found", zap.String("file", filePath))
 
 			bytes, err := os.ReadFile(filePath)
 			if err != nil {
@@ -175,6 +223,48 @@ func (f Fs) processExistingFiles(path string, chanFiles chan NewFile) error {
 	}
 
 	return nil
+}
+
+func findValidDirs(path string, ignoreDirs []string) ([]string, error) {
+	var dirs []string
+	firstRun := true
+	err := filepath.Walk(path, func(path string, info os.FileInfo, err error) error {
+		defer func() {
+			firstRun = false
+		}()
+
+		if !info.IsDir() {
+			return nil
+		}
+
+		if slices.Contains(ignoreDirs, filepath.Base(path)) {
+			return nil
+		}
+
+		// First run is always the path itself
+		if firstRun {
+			dirs = append(dirs, path)
+			return nil
+		}
+
+		if err != nil {
+			return err
+		}
+
+		nestedDirs, err := findValidDirs(path, []string{})
+		if err != nil {
+			return err
+		}
+
+		dirs = append(dirs, nestedDirs...)
+
+		return nil
+	})
+	if err != nil {
+		return nil, err
+	}
+
+	return dirs, nil
 }
 
 // Delete deletes a file from the directory

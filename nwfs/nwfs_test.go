@@ -6,6 +6,7 @@ import (
 	"math/rand"
 	"os"
 	"path"
+	"path/filepath"
 	"slices"
 	"strconv"
 	"testing"
@@ -15,7 +16,7 @@ import (
 func TestFs_Watch(t *testing.T) {
 	// Create random directory
 	dir := "./TestFs_Watch-" + strconv.Itoa(rand.Intn(math.MaxInt-1))
-	fs := NewFs(dir, mockLogger{})
+	fs := NewFs(dir, []string{}, mockLogger{})
 	baseTime := time.Now().UTC()
 
 	type args struct {
@@ -31,13 +32,13 @@ func TestFs_Watch(t *testing.T) {
 		{
 			name: "preexisting files",
 			preexistingFiles: []NewFile{
-				mockFile("1", baseTime.Add(-time.Hour)),
-				mockFile("2", baseTime.Add(-time.Hour)),
+				mockFile(fs, "1", baseTime.Add(-time.Hour)),
+				mockFile(fs, "2", baseTime.Add(-time.Hour)),
 			},
 			newFiles: []NewFile{},
 			expected: []NewFile{
-				mockFile("1", baseTime.Add(-time.Hour)),
-				mockFile("2", baseTime.Add(-time.Hour)),
+				mockFile(fs, "1", baseTime.Add(-time.Hour)),
+				mockFile(fs, "2", baseTime.Add(-time.Hour)),
 			},
 			expectedErr: nil,
 		},
@@ -45,13 +46,62 @@ func TestFs_Watch(t *testing.T) {
 			name:             "new files",
 			preexistingFiles: []NewFile{},
 			newFiles: []NewFile{
-				mockFile("3", baseTime.Add(-time.Hour)),
-				mockFile("4", baseTime.Add(-time.Hour)),
+				mockFile(fs, "3", baseTime.Add(-time.Hour)),
+				mockFile(fs, "4", baseTime.Add(-time.Hour)),
 			},
 			expected: []NewFile{
-				mockFile("3", baseTime.Add(-time.Hour)),
-				mockFile("4", baseTime.Add(-time.Hour)),
+				mockFile(fs, "3", baseTime.Add(-time.Hour)),
+				mockFile(fs, "4", baseTime.Add(-time.Hour)),
 			},
+			expectedErr: nil,
+		},
+		{
+			name:             "nested files",
+			preexistingFiles: []NewFile{},
+			newFiles: []NewFile{
+				mockFile(fs, "nested/3", baseTime.Add(-time.Hour)),
+				mockFile(fs, "nested/4", baseTime.Add(-time.Hour)),
+			},
+			expected: []NewFile{
+				mockFile(fs, "nested/3", baseTime.Add(-time.Hour)),
+				mockFile(fs, "nested/4", baseTime.Add(-time.Hour)),
+			},
+			expectedErr: nil,
+		},
+		{
+			name:             "deeper nested files",
+			preexistingFiles: []NewFile{},
+			newFiles: []NewFile{
+				mockFile(fs, "3", baseTime.Add(-time.Hour)),
+				mockFile(fs, "nested1/4", baseTime.Add(-time.Hour)),
+				mockFile(fs, "nested2/nested3/4", baseTime.Add(-time.Hour)),
+				mockFile(fs, "nested3/nested4/5", baseTime.Add(-time.Hour)),
+			},
+			expected: []NewFile{
+				mockFile(fs, "3", baseTime.Add(-time.Hour)),
+				mockFile(fs, "nested1/4", baseTime.Add(-time.Hour)),
+				mockFile(fs, "nested2/nested3/4", baseTime.Add(-time.Hour)),
+				mockFile(fs, "nested3/nested4/5", baseTime.Add(-time.Hour)),
+			},
+			expectedErr: nil,
+		},
+		{
+			name: "ignore preexisting files",
+			preexistingFiles: []NewFile{
+				mockFile(fs, "unprocessable/3", baseTime.Add(-time.Hour)),
+				mockFile(fs, "redirect/4", baseTime.Add(-time.Hour)),
+			},
+			expected:    []NewFile{},
+			expectedErr: nil,
+		},
+		{
+			name:             "ignore new files",
+			preexistingFiles: []NewFile{},
+			newFiles: []NewFile{
+				mockFile(fs, "unprocessable/3", baseTime.Add(-time.Hour)),
+				mockFile(fs, "redirect/4", baseTime.Add(-time.Hour)),
+			},
+			expected:    []NewFile{},
 			expectedErr: nil,
 		},
 	}
@@ -60,7 +110,12 @@ func TestFs_Watch(t *testing.T) {
 			os.MkdirAll(fs.dir, 0755)
 			defer os.RemoveAll(fs.dir)
 			for _, file := range tt.preexistingFiles {
-				f, err := os.OpenFile(path.Join(fs.dir, file.Name), os.O_APPEND|os.O_CREATE|os.O_WRONLY, 0644)
+				err := os.MkdirAll(filepath.Dir(file.Path), 0755)
+				if err != nil {
+					t.Fatal(err)
+				}
+
+				f, err := os.OpenFile(file.Path, os.O_APPEND|os.O_CREATE|os.O_WRONLY, 0644)
 				if err != nil {
 					t.Fatal(err)
 				}
@@ -70,7 +125,7 @@ func TestFs_Watch(t *testing.T) {
 					t.Fatal(err)
 				}
 
-				err = os.Chtimes(path.Join(fs.dir, file.Name), file.ReceivedTime, file.ReceivedTime)
+				err = os.Chtimes(file.Path, file.ReceivedTime, file.ReceivedTime)
 				if err != nil {
 					t.Fatal(err)
 				}
@@ -92,7 +147,12 @@ func TestFs_Watch(t *testing.T) {
 
 			time.Sleep(time.Second)
 			for _, file := range tt.newFiles {
-				f, err := os.OpenFile(path.Join(fs.dir, file.Name), os.O_APPEND|os.O_CREATE|os.O_WRONLY, 0644)
+				err := os.MkdirAll(filepath.Dir(file.Path), 0755)
+				if err != nil {
+					t.Fatal(err)
+				}
+
+				f, err := os.OpenFile(file.Path, os.O_APPEND|os.O_CREATE|os.O_WRONLY, 0644)
 				if err != nil {
 					t.Fatal(err)
 				}
@@ -102,7 +162,7 @@ func TestFs_Watch(t *testing.T) {
 					t.Fatal(err)
 				}
 
-				err = os.Chtimes(path.Join(fs.dir, file.Name), file.ReceivedTime, file.ReceivedTime)
+				err = os.Chtimes(file.Path, file.ReceivedTime, file.ReceivedTime)
 				if err != nil {
 					t.Fatal(err)
 				}
@@ -145,7 +205,10 @@ func TestFs_Watch(t *testing.T) {
 					}
 				case err := <-chanErr:
 					t.Fatal(err)
-				case <-time.After(time.Second * 5):
+				case <-time.After(time.Millisecond * 700):
+					if len(tt.expected) == 0 {
+						return
+					}
 					t.Fatalf("timed out waiting for files")
 				}
 			}
@@ -153,10 +216,11 @@ func TestFs_Watch(t *testing.T) {
 	}
 }
 
-func mockFile(name string, receivedTime ...time.Time) NewFile {
+func mockFile(fs Fs, relativePath string, receivedTime ...time.Time) NewFile {
 	nf := NewFile{
-		Name:  name,
-		Bytes: []byte(name),
+		Name:  filepath.Base(relativePath),
+		Path:  path.Join(fs.dir, relativePath),
+		Bytes: []byte(filepath.Base(relativePath)),
 	}
 
 	if len(receivedTime) > 0 {
