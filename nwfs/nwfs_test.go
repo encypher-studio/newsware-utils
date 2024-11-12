@@ -45,12 +45,12 @@ func TestFs_Watch(t *testing.T) {
 			name:             "new files",
 			preexistingFiles: []NewFile{},
 			newFiles: []NewFile{
-				mockFile("3"),
-				mockFile("4"),
+				mockFile("3", baseTime.Add(-time.Hour)),
+				mockFile("4", baseTime.Add(-time.Hour)),
 			},
 			expected: []NewFile{
-				mockFile("3"),
-				mockFile("4"),
+				mockFile("3", baseTime.Add(-time.Hour)),
+				mockFile("4", baseTime.Add(-time.Hour)),
 			},
 			expectedErr: nil,
 		},
@@ -102,6 +102,11 @@ func TestFs_Watch(t *testing.T) {
 					t.Fatal(err)
 				}
 
+				err = os.Chtimes(path.Join(fs.dir, file.Name), file.ReceivedTime, file.ReceivedTime)
+				if err != nil {
+					t.Fatal(err)
+				}
+
 				err = f.Close()
 				if err != nil {
 					t.Fatal(err)
@@ -131,10 +136,6 @@ func TestFs_Watch(t *testing.T) {
 						t.Fatalf("expected file bytes %s, got %s", expectedFile.Bytes, actualFile.Bytes)
 					}
 
-					// Set the received time to now, since we can't predict the exact time it will be received
-					if expectedFile.ReceivedTime.IsZero() {
-						expectedFile.ReceivedTime = time.Now().UTC()
-					}
 					if delta := expectedFile.ReceivedTime.Sub(actualFile.ReceivedTime); delta > time.Millisecond*50 || delta < -time.Millisecond*50 {
 						t.Fatalf("expected file received time not within expected error %s, got %s", expectedFile.ReceivedTime, actualFile.ReceivedTime)
 					}
