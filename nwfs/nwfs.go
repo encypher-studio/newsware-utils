@@ -72,6 +72,8 @@ func (f Fs) Watch(ctx context.Context, chanFiles chan NewFile) error {
 				return nil
 			}
 
+			f.logger.Info("fsWatcher event", zap.String("event", event.String()), zap.String("file", event.Name))
+
 			if !event.Has(fsnotify.Create) && !event.Has(fsnotify.Write) {
 				continue
 			}
