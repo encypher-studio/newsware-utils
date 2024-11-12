@@ -16,7 +16,9 @@ import (
 func TestFs_Watch(t *testing.T) {
 	// Create random directory
 	dir := "./TestFs_Watch-" + strconv.Itoa(rand.Intn(math.MaxInt-1))
-	fs := NewFs(dir, []string{}, mockLogger{})
+	fs := NewFs(Config{
+		Dir: dir,
+	}, mockLogger{})
 	baseTime := time.Now().UTC()
 
 	type args struct {
@@ -107,8 +109,8 @@ func TestFs_Watch(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			os.MkdirAll(fs.dir, 0755)
-			defer os.RemoveAll(fs.dir)
+			os.MkdirAll(fs.Dir, 0755)
+			defer os.RemoveAll(fs.Dir)
 			for _, file := range tt.preexistingFiles {
 				err := os.MkdirAll(filepath.Dir(file.Path), 0755)
 				if err != nil {
@@ -219,7 +221,7 @@ func TestFs_Watch(t *testing.T) {
 func mockFile(fs Fs, relativePath string, receivedTime ...time.Time) NewFile {
 	nf := NewFile{
 		Name:  filepath.Base(relativePath),
-		Path:  path.Join(fs.dir, relativePath),
+		Path:  path.Join(fs.Dir, relativePath),
 		Bytes: []byte(filepath.Base(relativePath)),
 	}
 

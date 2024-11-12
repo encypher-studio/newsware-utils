@@ -27,7 +27,9 @@ type FileWatcher struct {
 
 // New creates a new Fly instance.
 func New(watchDir string, indexer indexer.Indexer, parseFunc ParseFunc, logger ecslogger.ILogger) FileWatcher {
-	fs := nwfs.NewFs(watchDir, []string{}, logger)
+	fs := nwfs.NewFs(nwfs.Config{
+		Dir: watchDir,
+	}, logger)
 	return FileWatcher{fs: fs, indexer: indexer, logger: logger, parseFunc: parseFunc}
 }
 

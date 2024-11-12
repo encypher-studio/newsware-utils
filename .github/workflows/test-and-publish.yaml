@@ -6,6 +6,18 @@ on:
 name: Update pkg.go.dev index
   
 jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+    - name: Checkout repo
+      uses: actions/checkout@v3
+    - name: Setup Go
+      uses: actions/setup-go@v5
+      with:
+        go-version: 1.23
+    - name: Run tests
+      run: |
+        go test -v ./...
   bump-index:
     runs-on: ubuntu-latest
     steps:

@@ -1,15 +1,16 @@
 module github.com/encypher-studio/newsware-utils
 
-go 1.22rc2
+go 1.23.3
 
 require (
 	github.com/avast/retry-go/v4 v4.5.1
 	github.com/elastic/elastic-transport-go/v8 v8.0.0-20230329154755-1a3c63de0db6
 	github.com/elastic/go-elasticsearch/v8 v8.9.0
-	github.com/fsnotify/fsnotify v1.7.0
 	github.com/gofiber/fiber/v2 v2.52.2
+	github.com/nats-io/nats.go v1.35.0
 	github.com/pkg/errors v0.9.1
 	github.com/prometheus/client_golang v1.16.0
+	github.com/said1296/fsnotify v0.0.0-20241112183224-5e43f752aa4d
 	github.com/stretchr/testify v1.8.4
 	go.elastic.co/ecszap v1.0.2
 	go.uber.org/zap v1.25.0
@@ -29,7 +30,6 @@ require (
 	github.com/mattn/go-isatty v0.0.20 // indirect
 	github.com/mattn/go-runewidth v0.0.15 // indirect
 	github.com/matttproud/golang_protobuf_extensions v1.0.4 // indirect
-	github.com/nats-io/nats.go v1.35.0 // indirect
 	github.com/nats-io/nkeys v0.4.7 // indirect
 	github.com/nats-io/nuid v1.0.1 // indirect
 	github.com/pmezard/go-difflib v1.0.0 // indirect
@@ -43,6 +43,6 @@ require (
 	github.com/valyala/tcplisten v1.0.0 // indirect
 	go.uber.org/multierr v1.10.0 // indirect
 	golang.org/x/crypto v0.18.0 // indirect
-	golang.org/x/sys v0.16.0 // indirect
+	golang.org/x/sys v0.27.0 // indirect
 	google.golang.org/protobuf v1.30.0 // indirect
 )
