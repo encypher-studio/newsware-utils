@@ -7,8 +7,11 @@ import (
 
 type mockLogger struct{}
 
-func (m mockLogger) Fatal(string, error, ...zap.Field)                {}
-func (m mockLogger) Error(msg string, err error, fields ...zap.Field) {}
+func (m mockLogger) Fatal(string, error, ...zap.Field) {}
+func (m mockLogger) Error(msg string, err error, z ...zap.Field) {
+	// logger, _ := zap.NewProduction()
+	// logger.Error(msg, zap.Error(err))
+}
 func (m mockLogger) Info(msg string, z ...zap.Field) {
 	// logger, _ := zap.NewProduction()
 	// logger.Info(msg, z...)

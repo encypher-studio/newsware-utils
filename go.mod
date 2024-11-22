@@ -10,7 +10,7 @@ require (
 	github.com/nats-io/nats.go v1.35.0
 	github.com/pkg/errors v0.9.1
 	github.com/prometheus/client_golang v1.16.0
-	github.com/said1296/fsnotify v0.0.0-20241112183224-5e43f752aa4d
+	github.com/said1296/fsnotify v0.0.0-20241122182610-eb4aa1682087
 	github.com/stretchr/testify v1.8.4
 	go.elastic.co/ecszap v1.0.2
 	go.uber.org/zap v1.25.0

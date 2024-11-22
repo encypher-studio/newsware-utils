@@ -29,11 +29,12 @@ func TestFs_Watch(t *testing.T) {
 		chanFiles chan NewFile
 	}
 	tests := []struct {
-		name             string
-		preexistingFiles []NewFile
-		newFiles         []NewFile
-		expected         []NewFile
-		expectedErr      error
+		name                  string
+		preexistingFiles      []NewFile
+		newFiles              []NewFile
+		mockFileModifications func()
+		expected              []NewFile
+		expectedErr           error
 	}{
 		{
 			name: "preexisting files",
@@ -144,6 +145,40 @@ func TestFs_Watch(t *testing.T) {
 			},
 			expectedErr: nil,
 		},
+		{
+			name: "detect renames",
+			newFiles: []NewFile{
+				mockFile(fs, "1.ignore", baseTime.Add(-time.Hour)),
+				mockFile(fs, "nested2/2.ignore", baseTime.Add(-time.Hour)),
+				mockFile(fs, "ignore.xml", baseTime.Add(-time.Hour)),
+			},
+			mockFileModifications: func() {
+				moveFile(t, path.Join(fs.Dir, "1.ignore"), path.Join(fs.Dir, "1.notIgnore"))
+				moveFile(t, path.Join(fs.Dir, "nested2/2.ignore"), path.Join(fs.Dir, "nested2/2.notIgnore"))
+				moveFile(t, path.Join(fs.Dir, "ignore.xml"), path.Join(fs.Dir, "notIgnore.xml"))
+			},
+			expected: []NewFile{
+				{
+					Name:         "1.notIgnore",
+					Path:         path.Join(fs.Dir, "1.notIgnore"),
+					Bytes:        []byte("1.ignore"),
+					ReceivedTime: baseTime.Add(-time.Hour),
+				},
+				{
+					Name:         "2.notIgnore",
+					Path:         path.Join(fs.Dir, "nested2/2.notIgnore"),
+					Bytes:        []byte("2.ignore"),
+					ReceivedTime: baseTime.Add(-time.Hour),
+				},
+				{
+					Name:         "notIgnore.xml",
+					Path:         path.Join(fs.Dir, "notIgnore.xml"),
+					Bytes:        []byte("ignore.xml"),
+					ReceivedTime: baseTime.Add(-time.Hour),
+				},
+			},
+			expectedErr: nil,
+		},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
@@ -185,7 +220,7 @@ func TestFs_Watch(t *testing.T) {
 				}
 			}()
 
-			time.Sleep(time.Second)
+			time.Sleep(time.Millisecond * 100)
 			for _, file := range tt.newFiles {
 				err := os.MkdirAll(filepath.Dir(file.Path), 0755)
 				if err != nil {
@@ -213,6 +248,14 @@ func TestFs_Watch(t *testing.T) {
 				}
 			}
 
+			time.Sleep(time.Second * 1)
+
+			if tt.mockFileModifications != nil {
+				tt.mockFileModifications()
+			}
+
+			time.Sleep(time.Second * 1)
+
 			for {
 				select {
 				case actualFile := <-chanFiles:
@@ -237,11 +280,7 @@ func TestFs_Watch(t *testing.T) {
 					}
 
 					if delta := expectedFile.ReceivedTime.Sub(actualFile.ReceivedTime); delta > time.Millisecond*50 || delta < -time.Millisecond*50 {
-						t.Fatalf("expected file received time not within expected error %s, got %s", expectedFile.ReceivedTime, actualFile.ReceivedTime)
-					}
-
-					if len(tt.expected) == 0 {
-						return
+						t.Fatalf("expected file received time not within error margin, expected %s, got %s", expectedFile.ReceivedTime, actualFile.ReceivedTime)
 					}
 				case err := <-chanErr:
 					t.Fatal(err)
@@ -268,4 +307,11 @@ func mockFile(fs Fs, relativePath string, receivedTime ...time.Time) NewFile {
 	}
 
 	return nf
+}
+
+func moveFile(t *testing.T, src, dst string) {
+	err := os.Rename(src, dst)
+	if err != nil {
+		t.Fatal(err)
+	}
 }

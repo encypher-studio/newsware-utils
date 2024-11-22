@@ -20,6 +20,10 @@ var (
 	ErrWatchDirMissing = fmt.Errorf("watch directory missing in config")
 )
 
+const (
+	opsFilter fsnotify.Op = fsnotify.UnportableCloseWrite | fsnotify.Create | fsnotify.Rename
+)
+
 type NewFile struct {
 	Name         string
 	Path         string
@@ -102,19 +106,20 @@ func (f Fs) Watch(ctx context.Context, chanFiles chan NewFile) error {
 	}
 
 	// Watch for new files
-	fsWatcher, err := fsnotify.NewWatcher()
+	fsWatcher, err := fsnotify.NewBufferedWatcher(100)
 	if err != nil {
 		return err
 	}
-	fsWatcher.Events = make(chan fsnotify.Event, 100)
 	defer fsWatcher.Close()
 
 	for _, dir := range dirs {
-		err = fsWatcher.AddWith(dir, fsnotify.WithOps(fsnotify.UnportableCloseWrite|fsnotify.Create))
+		err = fsWatcher.AddWith(dir, fsnotify.WithOps(opsFilter))
 		if err != nil {
 			return fmt.Errorf("adding directory to watch list: %w", err)
 		}
 	}
+
+	createTimers := make(map[string]*time.Timer)
 
 	for {
 		select {
@@ -122,6 +127,10 @@ func (f Fs) Watch(ctx context.Context, chanFiles chan NewFile) error {
 			if !ok {
 				f.logger.Info("fsWatcher.Events channel closed")
 				return nil
+			}
+
+			if event.Op == fsnotify.Rename {
+				continue
 			}
 
 			f.eventRetries[event.Name]++
@@ -134,12 +143,25 @@ func (f Fs) Watch(ctx context.Context, chanFiles chan NewFile) error {
 
 			info, err := os.Stat(event.Name)
 			if err != nil {
+				if os.IsNotExist(err) {
+					f.logger.Error("file not found", err, zap.String("name", event.Name))
+					continue
+				}
 				f.logger.Error("getting file info", err, zap.String("name", event.Name))
 				fsWatcher.Events <- event
 				continue
 			}
 
-			if event.Op == fsnotify.Create && info.IsDir() {
+			switch event.Op {
+			case fsnotify.Create:
+				if !info.IsDir() {
+					createTimers[event.Name] = time.AfterFunc(time.Millisecond*200, func() {
+						f.processFinishedEvent(fsWatcher, event, chanFiles, info)
+						delete(createTimers, event.Name)
+					})
+					continue
+				}
+
 				f.logger.Info("new directory detected", zap.String("name", event.Name))
 
 				// Add nested directories created after the parent directory
@@ -157,7 +179,7 @@ func (f Fs) Watch(ctx context.Context, chanFiles chan NewFile) error {
 
 				for _, dir := range dirs {
 					f.logger.Info("adding directory to watch list", zap.String("name", dir))
-					err = fsWatcher.Add(dir)
+					err = fsWatcher.AddWith(dir, fsnotify.WithOps(opsFilter))
 					if err != nil {
 						f.logger.Error("adding directory to watch list", err, zap.String("name", dir))
 						fsWatcher.Events <- event
@@ -169,34 +191,10 @@ func (f Fs) Watch(ctx context.Context, chanFiles chan NewFile) error {
 				if err != nil {
 					f.logger.Error("processing existing files in new directory", err, zap.String("name", event.Name))
 				}
-
-				continue
-			}
-
-			f.logger.Info("new file detected", zap.String("file", event.Name))
-			filename := filepath.Base(event.Name)
-
-			if !f.isValidFile(filename) {
-				f.logger.Info("file ignored", zap.String("file", event.Name))
-				continue
-			}
-
-			var bytes []byte
-			if !f.SkipReadingContent {
-				bytes, err = os.ReadFile(event.Name)
-				if err != nil {
-					f.logger.Error("reading file content", err, zap.String("name", event.Name))
-					fsWatcher.Events <- event
-					continue
-				}
-			}
-
-			chanFiles <- NewFile{
-				Name:         filename,
-				Path:         event.Name,
-				RelativePath: strings.Trim(event.Name, f.Dir),
-				Bytes:        bytes,
-				ReceivedTime: info.ModTime().UTC(),
+			case fsnotify.UnportableCloseWrite:
+				createTimers[event.Name].Stop()
+				delete(createTimers, event.Name)
+				f.processFinishedEvent(fsWatcher, event, chanFiles, info)
 			}
 		case err, ok := <-fsWatcher.Errors:
 			if !ok {
@@ -204,6 +202,36 @@ func (f Fs) Watch(ctx context.Context, chanFiles chan NewFile) error {
 			}
 			return err
 		}
+	}
+}
+
+func (f Fs) processFinishedEvent(fsWatcher *fsnotify.Watcher, event fsnotify.Event, chanFiles chan NewFile, info os.FileInfo) {
+	var err error
+
+	f.logger.Info("new file detected", zap.String("file", event.Name))
+	filename := filepath.Base(event.Name)
+
+	if !f.isValidFile(filename) {
+		f.logger.Info("file ignored", zap.String("file", event.Name))
+		return
+	}
+
+	var bytes []byte
+	if !f.SkipReadingContent {
+		bytes, err = os.ReadFile(event.Name)
+		if err != nil {
+			f.logger.Error("reading file content", err, zap.String("name", event.Name))
+			fsWatcher.Events <- event
+			return
+		}
+	}
+
+	chanFiles <- NewFile{
+		Name:         filename,
+		Path:         event.Name,
+		RelativePath: strings.Trim(event.Name, f.Dir),
+		Bytes:        bytes,
+		ReceivedTime: info.ModTime().UTC(),
 	}
 }
 
