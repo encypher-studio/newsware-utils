@@ -106,6 +106,7 @@ func (f Fs) Watch(ctx context.Context, chanFiles chan NewFile) error {
 	if err != nil {
 		return err
 	}
+	fsWatcher.Events = make(chan fsnotify.Event, 100)
 	defer fsWatcher.Close()
 
 	for _, dir := range dirs {
