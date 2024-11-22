@@ -66,6 +66,7 @@ func NewFs(config Config, logger ecslogger.ILogger) (Fs, error) {
 		Config:       config,
 		logger:       logger,
 		eventRetries: make(map[string]int),
+		ignoreFiles:  ignoreFiles,
 	}, nil
 }
 
@@ -91,7 +92,7 @@ func (f Fs) Watch(ctx context.Context, chanFiles chan NewFile) error {
 	defer fsWatcher.Close()
 
 	for _, dir := range dirs {
-		err = fsWatcher.AddWith(dir, fsnotify.WithOps(fsnotify.UnportableCloseWrite|fsnotify.Create))
+		err = fsWatcher.AddWith(dir, fsnotify.WithOps(fsnotify.UnportableCloseWrite|fsnotify.Create|fsnotify.Rename))
 		if err != nil {
 			return fmt.Errorf("adding directory to watch list: %w", err)
 		}
