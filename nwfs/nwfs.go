@@ -16,6 +16,10 @@ import (
 	"go.uber.org/zap"
 )
 
+var (
+	ErrWatchDirMissing = fmt.Errorf("watch directory missing in config")
+)
+
 type NewFile struct {
 	Name         string
 	Path         string
@@ -38,14 +42,27 @@ type Fs struct {
 }
 
 type Config struct {
-	Dir                string
-	IgnoreDirs         []string
-	SkipReadingContent bool
-	IgnoreFiles        []string
+	Dir                string   `yaml:"dir"`
+	IgnoreDirs         []string `yaml:"ignoreDirs"`
+	SkipReadingContent bool     `yaml:"skipReadingContent"`
+	IgnoreFiles        []string `yaml:"ignoreFiles"`
+}
+
+func (c Config) Validate() error {
+	if c.Dir == "" {
+		return ErrWatchDirMissing
+	}
+
+	return nil
 }
 
 // NewFs creates a new Fs instance.
 func NewFs(config Config, logger ecslogger.ILogger) (Fs, error) {
+	err := config.Validate()
+	if err != nil {
+		return Fs{}, err
+	}
+
 	config.IgnoreDirs = append(config.IgnoreDirs, "unprocessable")
 	config.IgnoreDirs = append(config.IgnoreDirs, "redirect")
 
