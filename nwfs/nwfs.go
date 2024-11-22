@@ -109,7 +109,7 @@ func (f Fs) Watch(ctx context.Context, chanFiles chan NewFile) error {
 	defer fsWatcher.Close()
 
 	for _, dir := range dirs {
-		err = fsWatcher.AddWith(dir, fsnotify.WithOps(fsnotify.UnportableCloseWrite|fsnotify.Create|fsnotify.Rename))
+		err = fsWatcher.AddWith(dir, fsnotify.WithOps(fsnotify.UnportableCloseWrite|fsnotify.Create))
 		if err != nil {
 			return fmt.Errorf("adding directory to watch list: %w", err)
 		}
@@ -138,11 +138,7 @@ func (f Fs) Watch(ctx context.Context, chanFiles chan NewFile) error {
 				continue
 			}
 
-			if event.Op == fsnotify.Create {
-				if !info.IsDir() {
-					continue
-				}
-
+			if event.Op == fsnotify.Create && info.IsDir() {
 				f.logger.Info("new directory detected", zap.String("name", event.Name))
 
 				// Add nested directories created after the parent directory
