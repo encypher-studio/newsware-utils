@@ -18,7 +18,7 @@ func TestFs_Watch(t *testing.T) {
 	dir := "./TestFs_Watch-" + strconv.Itoa(rand.Intn(math.MaxInt-1))
 	fs, err := NewFs(Config{
 		Dir:         dir,
-		IgnoreFiles: []string{`\.ignore$`, `^ignorestart`},
+		IgnoreFiles: []string{`\.ignore$`, `^ignore`},
 	}, mockLogger{})
 	if err != nil {
 		t.Fatal(err)
