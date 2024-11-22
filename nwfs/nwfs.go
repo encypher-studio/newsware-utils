@@ -48,7 +48,7 @@ type Config struct {
 	IgnoreFiles        []string `yaml:"ignoreFiles"`
 }
 
-func (c Config) Validate() error {
+func (c Config) validate() error {
 	if c.Dir == "" {
 		return ErrWatchDirMissing
 	}
@@ -58,7 +58,7 @@ func (c Config) Validate() error {
 
 // NewFs creates a new Fs instance.
 func NewFs(config Config, logger ecslogger.ILogger) (Fs, error) {
-	err := config.Validate()
+	err := config.validate()
 	if err != nil {
 		return Fs{}, err
 	}
