@@ -6,6 +6,7 @@ import (
 	"os"
 	"path"
 	"path/filepath"
+	"regexp"
 	"slices"
 	"strings"
 	"time"
@@ -33,16 +34,18 @@ type Fs struct {
 	Config
 	logger       ecslogger.ILogger
 	eventRetries map[string]int
+	ignoreFiles  []*regexp.Regexp
 }
 
 type Config struct {
 	Dir                string
 	IgnoreDirs         []string
 	SkipReadingContent bool
+	IgnoreFiles        []string
 }
 
 // NewFs creates a new Fs instance.
-func NewFs(config Config, logger ecslogger.ILogger) Fs {
+func NewFs(config Config, logger ecslogger.ILogger) (Fs, error) {
 	config.IgnoreDirs = append(config.IgnoreDirs, "unprocessable")
 	config.IgnoreDirs = append(config.IgnoreDirs, "redirect")
 
@@ -50,11 +53,20 @@ func NewFs(config Config, logger ecslogger.ILogger) Fs {
 		config.IgnoreDirs[i] = filepath.Clean(dir)
 	}
 
+	var ignoreFiles []*regexp.Regexp
+	for _, ignoreFile := range config.IgnoreFiles {
+		re, err := regexp.Compile(ignoreFile)
+		if err != nil {
+			return Fs{}, fmt.Errorf("compiling ignore file regex: %w", err)
+		}
+		ignoreFiles = append(ignoreFiles, re)
+	}
+
 	return Fs{
 		Config:       config,
 		logger:       logger,
 		eventRetries: make(map[string]int),
-	}
+	}, nil
 }
 
 // Watch watches the directory for top and nested new files and sends them to the channel, it also processes existing files.
@@ -147,6 +159,12 @@ func (f Fs) Watch(ctx context.Context, chanFiles chan NewFile) error {
 			}
 
 			f.logger.Info("new file detected", zap.String("file", event.Name))
+			filename := filepath.Base(event.Name)
+
+			if !f.isValidFile(filename) {
+				f.logger.Info("file ignored", zap.String("file", event.Name))
+				continue
+			}
 
 			var bytes []byte
 			if !f.SkipReadingContent {
@@ -159,7 +177,7 @@ func (f Fs) Watch(ctx context.Context, chanFiles chan NewFile) error {
 			}
 
 			chanFiles <- NewFile{
-				Name:         filepath.Base(event.Name),
+				Name:         filename,
 				Path:         event.Name,
 				RelativePath: strings.Trim(event.Name, f.Dir),
 				Bytes:        bytes,
@@ -184,6 +202,11 @@ func (f Fs) processExistingFiles(dirs []string, chanFiles chan NewFile) error {
 
 		for _, file := range files {
 			if file.IsDir() {
+				continue
+			}
+
+			if !f.isValidFile(file.Name()) {
+				f.logger.Info("file ignored", zap.String("file", file.Name()))
 				continue
 			}
 
@@ -214,6 +237,16 @@ func (f Fs) processExistingFiles(dirs []string, chanFiles chan NewFile) error {
 	}
 
 	return nil
+}
+
+func (f Fs) isValidFile(filename string) bool {
+	for _, ignoreFile := range f.ignoreFiles {
+		if ignoreFile.MatchString(filename) {
+			return false
+		}
+	}
+
+	return true
 }
 
 func findValidDirs(path string, ignoreDirs []string) ([]string, error) {

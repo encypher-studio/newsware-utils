@@ -16,9 +16,13 @@ import (
 func TestFs_Watch(t *testing.T) {
 	// Create random directory
 	dir := "./TestFs_Watch-" + strconv.Itoa(rand.Intn(math.MaxInt-1))
-	fs := NewFs(Config{
-		Dir: dir,
+	fs, err := NewFs(Config{
+		Dir:         dir,
+		IgnoreFiles: []string{`\.ignore$`, `^ignorestart`},
 	}, mockLogger{})
+	if err != nil {
+		t.Fatal(err)
+	}
 	baseTime := time.Now().UTC()
 
 	type args struct {
@@ -88,7 +92,7 @@ func TestFs_Watch(t *testing.T) {
 			expectedErr: nil,
 		},
 		{
-			name: "ignore preexisting files",
+			name: "ignore preexisting dirs",
 			preexistingFiles: []NewFile{
 				mockFile(fs, "unprocessable/3", baseTime.Add(-time.Hour)),
 				mockFile(fs, "redirect/4", baseTime.Add(-time.Hour)),
@@ -97,13 +101,47 @@ func TestFs_Watch(t *testing.T) {
 			expectedErr: nil,
 		},
 		{
-			name:             "ignore new files",
+			name:             "ignore new dirs",
 			preexistingFiles: []NewFile{},
 			newFiles: []NewFile{
 				mockFile(fs, "unprocessable/3", baseTime.Add(-time.Hour)),
 				mockFile(fs, "redirect/4", baseTime.Add(-time.Hour)),
 			},
 			expected:    []NewFile{},
+			expectedErr: nil,
+		},
+		{
+			name: "ignore preexisting files",
+			preexistingFiles: []NewFile{
+				mockFile(fs, "1.ignore", baseTime.Add(-time.Hour)),
+				mockFile(fs, "notIgnore", baseTime.Add(-time.Hour)),
+				mockFile(fs, "nested1/4.ignore", baseTime.Add(-time.Hour)),
+				mockFile(fs, "nested1/notIgnore", baseTime.Add(-time.Hour)),
+				mockFile(fs, "ignore.xml", baseTime.Add(-time.Hour)),
+				mockFile(fs, "notIgnore.xml", baseTime.Add(-time.Hour)),
+			},
+			expected: []NewFile{
+				mockFile(fs, "notIgnore", baseTime.Add(-time.Hour)),
+				mockFile(fs, "nested1/notIgnore", baseTime.Add(-time.Hour)),
+				mockFile(fs, "notIgnore.xml", baseTime.Add(-time.Hour)),
+			},
+			expectedErr: nil,
+		},
+		{
+			name: "ignore new files",
+			newFiles: []NewFile{
+				mockFile(fs, "1.ignore", baseTime.Add(-time.Hour)),
+				mockFile(fs, "notIgnore", baseTime.Add(-time.Hour)),
+				mockFile(fs, "nested1/4.ignore", baseTime.Add(-time.Hour)),
+				mockFile(fs, "nested1/notIgnore", baseTime.Add(-time.Hour)),
+				mockFile(fs, "ignore.xml", baseTime.Add(-time.Hour)),
+				mockFile(fs, "notIgnore.xml", baseTime.Add(-time.Hour)),
+			},
+			expected: []NewFile{
+				mockFile(fs, "notIgnore", baseTime.Add(-time.Hour)),
+				mockFile(fs, "nested1/notIgnore", baseTime.Add(-time.Hour)),
+				mockFile(fs, "notIgnore.xml", baseTime.Add(-time.Hour)),
+			},
 			expectedErr: nil,
 		},
 	}
