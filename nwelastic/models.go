@@ -19,6 +19,10 @@ type News struct {
 	// CategoryCodes represents a code which varies from provider to provider and represents a specific topic such as
 	// acquisitions, mergers, etc.
 	CategoryCodes []string `json:"categoryCodes"`
+	// IndustryCodes represents a code which varies from provider to provider and represents a specific industry such as technology, finance, etc.
+	IndustryCodes []string `json:"industryCodes"`
+	// GeographicCodes represents a code which varies from provider to provider and represents a specific geographic location such as US, UK, etc.
+	GeographicCodes []string `json:"geographicCodes"`
 
 	// Ciks only applies to SEC
 	Ciks []int `json:"ciks,omitempty"`
