@@ -269,7 +269,7 @@ func TestFs_Watch(t *testing.T) {
 					}
 
 					if expectedFile == nil {
-						t.Fatalf("unexpected file %s", actualFile.Name)
+						t.Fatalf("unexpected file %+v", actualFile)
 					}
 
 					if actualFile.Name != expectedFile.Name {
