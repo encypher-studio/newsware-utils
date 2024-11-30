@@ -45,18 +45,18 @@ func (r *newsRepositorySuite) SetupSuite() {
 		r.FailNow(err.Error())
 	}
 
-	_, _ = r.newsRepository.elastic.typedClient.Indices.Delete(r.newsRepository.Index).Do(nil)
+	_, _ = r.newsRepository.elastic.TypedClient.Indices.Delete(r.newsRepository.Index).Do(nil)
 }
 
 func (r *newsRepositorySuite) SetupSubTest() {
-	_, err := r.newsRepository.elastic.typedClient.Indices.Create(r.newsRepository.Index).Do(nil)
+	_, err := r.newsRepository.elastic.TypedClient.Indices.Create(r.newsRepository.Index).Do(nil)
 	if err != nil {
 		r.FailNow(err.Error())
 	}
 }
 
 func (r *newsRepositorySuite) TearDownSubTest() {
-	_, err := r.newsRepository.elastic.typedClient.Indices.Delete(r.newsRepository.Index).Do(nil)
+	_, err := r.newsRepository.elastic.TypedClient.Indices.Delete(r.newsRepository.Index).Do(nil)
 	if err != nil {
 		r.FailNow(err.Error())
 	}
@@ -212,13 +212,13 @@ func (r *newsRepositorySuite) TestNewsRepository_InsertBatch() {
 				r.FailNow("")
 			}
 
-			_, err = r.newsRepository.elastic.typedClient.Indices.Refresh().Do(context.Background())
+			_, err = r.newsRepository.elastic.TypedClient.Indices.Refresh().Do(context.Background())
 			if !r.NoError(err) {
 				r.FailNow("")
 			}
 
 			actualNews := make([]*News, 0)
-			resp, err := r.newsRepository.elastic.typedClient.
+			resp, err := r.newsRepository.elastic.TypedClient.
 				Search().
 				Index(r.newsRepository.Index).
 				Request(&search.Request{
@@ -292,12 +292,12 @@ func (r *newsRepositorySuite) TestNewsRepository_Insert() {
 				r.FailNow("")
 			}
 
-			_, err = r.newsRepository.elastic.typedClient.Indices.Refresh().Do(context.Background())
+			_, err = r.newsRepository.elastic.TypedClient.Indices.Refresh().Do(context.Background())
 			if !r.NoError(err) {
 				r.FailNow("")
 			}
 
-			resp, err := r.newsRepository.elastic.typedClient.
+			resp, err := r.newsRepository.elastic.TypedClient.
 				Search().
 				Index(r.newsRepository.Index).
 				Request(&search.Request{

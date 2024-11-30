@@ -20,7 +20,7 @@ var (
 
 type Elastic struct {
 	Config      ElasticConfig
-	typedClient *elasticsearch.TypedClient
+	TypedClient *elasticsearch.TypedClient
 	client      *elasticsearch.Client
 }
 
@@ -55,16 +55,16 @@ func (e *Elastic) StartClient() (err error) {
 }
 
 func (e *Elastic) StartTypedClient() (err error) {
-	if e.typedClient != nil {
+	if e.TypedClient != nil {
 		return nil
 	}
 
-	e.typedClient, err = elasticsearch.NewTypedClient(e.elasticClientConfig())
+	e.TypedClient, err = elasticsearch.NewTypedClient(e.elasticClientConfig())
 	if err != nil {
 		return errors.Wrap(err, "creating elastic client")
 	}
 
-	ok, err := e.typedClient.Ping().Do(context.Background())
+	ok, err := e.TypedClient.Ping().Do(context.Background())
 	if err != nil {
 		return errors.Wrap(err, ErrFailedToPingElastic.Error())
 	}
@@ -92,11 +92,11 @@ func (e *Elastic) bulkIndexer(index string) (esutil.BulkIndexer, error) {
 }
 
 func (e *Elastic) Search() *search.Search {
-	return e.typedClient.Search()
+	return e.TypedClient.Search()
 }
 
 func (e *Elastic) Get(index string, documentId string) *get.Get {
-	return e.typedClient.Get(index, documentId)
+	return e.TypedClient.Get(index, documentId)
 }
 
 func (e *Elastic) elasticClientConfig() elasticsearch.Config {
