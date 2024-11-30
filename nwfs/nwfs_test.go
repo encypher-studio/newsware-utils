@@ -220,8 +220,8 @@ func TestFs_Watch(t *testing.T) {
 				}
 			}()
 
-			time.Sleep(time.Millisecond * 100)
 			for _, file := range tt.newFiles {
+				time.Sleep(time.Millisecond * 100)
 				err := os.MkdirAll(filepath.Dir(file.Path), 0755)
 				if err != nil {
 					t.Fatal(err)
@@ -248,13 +248,9 @@ func TestFs_Watch(t *testing.T) {
 				}
 			}
 
-			time.Sleep(time.Second * 1)
-
 			if tt.mockFileModifications != nil {
 				tt.mockFileModifications()
 			}
-
-			time.Sleep(time.Second * 1)
 
 			for {
 				select {
