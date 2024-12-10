@@ -296,12 +296,16 @@ func (f Fs) isValidFile(filename string) bool {
 func findValidDirs(path string, ignoreDirs []string) ([]string, error) {
 	var dirs []string
 	firstRun := true
-	err := filepath.Walk(path, func(path string, info os.FileInfo, err error) error {
+	err := filepath.WalkDir(path, func(path string, dirEntry os.DirEntry, err error) error {
+		if err != nil {
+			return err
+		}
+
 		defer func() {
 			firstRun = false
 		}()
 
-		if !info.IsDir() {
+		if !dirEntry.IsDir() {
 			return nil
 		}
 
@@ -313,10 +317,6 @@ func findValidDirs(path string, ignoreDirs []string) ([]string, error) {
 		if firstRun {
 			dirs = append(dirs, path)
 			return nil
-		}
-
-		if err != nil {
-			return err
 		}
 
 		nestedDirs, err := findValidDirs(path, []string{})
