@@ -2,6 +2,8 @@ package filewatcher
 
 import (
 	"context"
+	"errors"
+	"fmt"
 
 	"github.com/encypher-studio/newsware-utils/ecslogger"
 	"github.com/encypher-studio/newsware-utils/indexer"
@@ -9,6 +11,10 @@ import (
 	"github.com/encypher-studio/newsware-utils/nwelastic"
 	"github.com/encypher-studio/newsware-utils/nwfs"
 	"go.uber.org/zap"
+)
+
+var (
+	ErrIgnorableNews = fmt.Errorf("ignorable news")
 )
 
 type ParseFunc func(newFile nwfs.NewFile) (nwelastic.News, error)
@@ -57,6 +63,16 @@ func (f *FileWatcher) Run() {
 			go func() {
 				news, err := f.parseFunc(newFile)
 				if err != nil {
+					if errors.Is(err, ErrIgnorableNews) {
+						f.logger.Info("ignorable news", zap.String("file", newFile.Path))
+						err = f.fs.Delete(newFile)
+						if err != nil {
+							f.logger.Error("deleting ignorable file", err, zap.String("file", newFile.Path))
+						} else {
+							f.logger.Info("file deleted", zap.String("file", newFile.Path))
+						}
+						return
+					}
 					// Move file to unprocessable directory
 					f.logger.Error("parsing news", err, zap.String("file", newFile.Path))
 					err = f.fs.Unprocessable(newFile)
