@@ -200,8 +200,10 @@ func (f Fs) Watch(ctx context.Context, chanFiles chan NewFile) error {
 					continue
 				}
 			case fsnotify.UnportableCloseWrite:
-				createTimers[event.Name].Stop()
-				delete(createTimers, event.Name)
+				if createTimers[event.Name] != nil {
+					createTimers[event.Name].Stop()
+					delete(createTimers, event.Name)
+				}
 				err := f.processNewFile(event.Name, chanFiles, info)
 				if err != nil {
 					f.logger.Error("processing finished event", err, zap.String("name", event.Name))

@@ -73,6 +73,7 @@ func (f *FileWatcher) Run() {
 						}
 						return
 					}
+
 					// Move file to unprocessable directory
 					f.logger.Error("parsing news", err, zap.String("file", newFile.Path))
 					err = f.fs.Unprocessable(newFile)
