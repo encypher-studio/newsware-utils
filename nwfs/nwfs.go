@@ -9,6 +9,7 @@ import (
 	"regexp"
 	"slices"
 	"strings"
+	"sync"
 	"time"
 
 	"github.com/encypher-studio/newsware-utils/ecslogger"
@@ -120,6 +121,7 @@ func (f Fs) Watch(ctx context.Context, chanFiles chan NewFile) error {
 	}
 
 	createTimers := make(map[string]*time.Timer)
+	createTimersMutex := &sync.RWMutex{}
 
 	for {
 		select {
@@ -155,6 +157,7 @@ func (f Fs) Watch(ctx context.Context, chanFiles chan NewFile) error {
 			switch event.Op {
 			case fsnotify.Create:
 				if !info.IsDir() {
+					createTimersMutex.Lock()
 					createTimers[event.Name] = time.AfterFunc(time.Millisecond*200, func() {
 						err := f.processNewFile(event.Name, chanFiles, info)
 						if err != nil {
@@ -162,8 +165,11 @@ func (f Fs) Watch(ctx context.Context, chanFiles chan NewFile) error {
 							fsWatcher.Events <- event
 							return
 						}
+						createTimersMutex.Lock()
 						delete(createTimers, event.Name)
+						createTimersMutex.Unlock()
 					})
+					createTimersMutex.Unlock()
 					continue
 				}
 
@@ -200,9 +206,14 @@ func (f Fs) Watch(ctx context.Context, chanFiles chan NewFile) error {
 					continue
 				}
 			case fsnotify.UnportableCloseWrite:
-				if createTimers[event.Name] != nil {
-					createTimers[event.Name].Stop()
+				createTimersMutex.RLock()
+				timer := createTimers[event.Name]
+				createTimersMutex.RUnlock()
+				if timer != nil {
+					timer.Stop()
+					createTimersMutex.Lock()
 					delete(createTimers, event.Name)
+					createTimersMutex.Unlock()
 				}
 				err := f.processNewFile(event.Name, chanFiles, info)
 				if err != nil {
