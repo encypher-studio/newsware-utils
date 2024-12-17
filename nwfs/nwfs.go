@@ -2,6 +2,7 @@ package nwfs
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"os"
 	"path"
@@ -355,5 +356,20 @@ func (f Fs) Delete(file NewFile) error {
 
 // Unprocessable moves a file to unprocessable directory
 func (f Fs) Unprocessable(file NewFile) error {
-	return os.Rename(file.Path, path.Join(f.Dir, "unprocessable", file.RelativePath))
+	targetPath := path.Join(f.Dir, "unprocessable", file.RelativePath)
+	err := os.Rename(file.Path, targetPath)
+	if err != nil {
+		if errors.Is(err, os.ErrNotExist) {
+			err := os.MkdirAll(filepath.Dir(targetPath), os.ModePerm)
+			if err != nil {
+				return fmt.Errorf("creating unprocessable directory: %w", err)
+			}
+
+			return os.Rename(file.Path, targetPath)
+		}
+
+		return err
+	}
+
+	return nil
 }
