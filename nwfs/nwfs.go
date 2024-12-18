@@ -138,6 +138,8 @@ func (f Fs) Watch(ctx context.Context, chanFiles chan NewFile) error {
 				continue
 			}
 
+			f.logger.Debug("event received", zap.String("event", event.String()))
+
 			f.eventRetries[event.Name]++
 			if f.eventRetries[event.Name] > 10 {
 				f.logger.Error("event retry limit reached", nil, zap.String("name", event.Name))

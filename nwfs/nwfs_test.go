@@ -25,9 +25,6 @@ func TestFs_Watch(t *testing.T) {
 	}
 	baseTime := time.Now().UTC()
 
-	type args struct {
-		chanFiles chan NewFile
-	}
 	tests := []struct {
 		name                  string
 		preexistingFiles      []NewFile
