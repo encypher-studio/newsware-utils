@@ -226,7 +226,7 @@ func (f Fs) Watch(ctx context.Context, chanFiles chan NewFile) error {
 	}
 }
 
-// handleFileModification processes a file after 200ms without a WRITE event
+// handleFileModification processes a file after a second without a WRITE event
 func (f Fs) handleFileModification(event fsnotify.Event, chanFiles chan NewFile, info os.FileInfo, fsWatcher *fsnotify.Watcher) {
 	f.fileModificationMutex.RLock()
 	_, ok := f.fileModificationTimers[event.Name]
@@ -246,7 +246,7 @@ func (f Fs) handleFileModification(event fsnotify.Event, chanFiles chan NewFile,
 		})
 		f.fileModificationMutex.Unlock()
 	}
-	f.fileModificationTimers[event.Name].Reset(time.Millisecond * 200)
+	f.fileModificationTimers[event.Name].Reset(time.Second)
 }
 
 func (f Fs) processNewFile(path string, chanFiles chan NewFile, info os.FileInfo) error {
