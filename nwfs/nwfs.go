@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"math"
 	"os"
 	"path"
 	"path/filepath"
@@ -23,7 +24,7 @@ var (
 )
 
 const (
-	opsFilter fsnotify.Op = fsnotify.UnportableCloseWrite | fsnotify.Create | fsnotify.Rename
+	opsFilter fsnotify.Op = fsnotify.UnportableCloseWrite | fsnotify.Create | fsnotify.Rename | fsnotify.Write
 )
 
 type NewFile struct {
@@ -42,9 +43,11 @@ type IFs interface {
 
 type Fs struct {
 	Config
-	logger       ecslogger.ILogger
-	eventRetries map[string]int
-	ignoreFiles  []*regexp.Regexp
+	logger                 ecslogger.ILogger
+	eventRetries           map[string]int
+	ignoreFiles            []*regexp.Regexp
+	fileModificationTimers map[string]*time.Timer
+	fileModificationMutex  *sync.RWMutex
 }
 
 type Config struct {
@@ -86,10 +89,12 @@ func NewFs(config Config, logger ecslogger.ILogger) (Fs, error) {
 	}
 
 	return Fs{
-		Config:       config,
-		logger:       logger,
-		eventRetries: make(map[string]int),
-		ignoreFiles:  ignoreFiles,
+		Config:                 config,
+		logger:                 logger,
+		eventRetries:           make(map[string]int),
+		ignoreFiles:            ignoreFiles,
+		fileModificationTimers: make(map[string]*time.Timer),
+		fileModificationMutex:  &sync.RWMutex{},
 	}, nil
 }
 
@@ -120,9 +125,6 @@ func (f Fs) Watch(ctx context.Context, chanFiles chan NewFile) error {
 			return fmt.Errorf("adding directory to watch list: %w", err)
 		}
 	}
-
-	createTimers := make(map[string]*time.Timer)
-	createTimersMutex := &sync.RWMutex{}
 
 	for {
 		select {
@@ -156,21 +158,11 @@ func (f Fs) Watch(ctx context.Context, chanFiles chan NewFile) error {
 			}
 
 			switch event.Op {
+			case fsnotify.Write:
+				f.handleFileModification(event, chanFiles, info, fsWatcher)
 			case fsnotify.Create:
 				if !info.IsDir() {
-					createTimersMutex.Lock()
-					createTimers[event.Name] = time.AfterFunc(time.Millisecond*200, func() {
-						err := f.processNewFile(event.Name, chanFiles, info)
-						if err != nil {
-							f.logger.Error("processing finished event", err, zap.String("name", event.Name))
-							fsWatcher.Events <- event
-							return
-						}
-						createTimersMutex.Lock()
-						delete(createTimers, event.Name)
-						createTimersMutex.Unlock()
-					})
-					createTimersMutex.Unlock()
+					f.handleFileModification(event, chanFiles, info, fsWatcher)
 					continue
 				}
 
@@ -207,14 +199,14 @@ func (f Fs) Watch(ctx context.Context, chanFiles chan NewFile) error {
 					continue
 				}
 			case fsnotify.UnportableCloseWrite:
-				createTimersMutex.RLock()
-				timer := createTimers[event.Name]
-				createTimersMutex.RUnlock()
+				f.fileModificationMutex.RLock()
+				timer := f.fileModificationTimers[event.Name]
+				f.fileModificationMutex.RUnlock()
 				if timer != nil {
 					timer.Stop()
-					createTimersMutex.Lock()
-					delete(createTimers, event.Name)
-					createTimersMutex.Unlock()
+					f.fileModificationMutex.Lock()
+					delete(f.fileModificationTimers, event.Name)
+					f.fileModificationMutex.Unlock()
 				}
 				err := f.processNewFile(event.Name, chanFiles, info)
 				if err != nil {
@@ -230,6 +222,29 @@ func (f Fs) Watch(ctx context.Context, chanFiles chan NewFile) error {
 			return err
 		}
 	}
+}
+
+// handleFileModification processes a file after 200ms without a WRITE event
+func (f Fs) handleFileModification(event fsnotify.Event, chanFiles chan NewFile, info os.FileInfo, fsWatcher *fsnotify.Watcher) {
+	f.fileModificationMutex.RLock()
+	_, ok := f.fileModificationTimers[event.Name]
+	f.fileModificationMutex.RUnlock()
+	if !ok {
+		f.fileModificationMutex.Lock()
+		f.fileModificationTimers[event.Name] = time.AfterFunc(math.MaxInt64, func() {
+			err := f.processNewFile(event.Name, chanFiles, info)
+			if err != nil {
+				f.logger.Error("processing finished event", err, zap.String("name", event.Name))
+				fsWatcher.Events <- event
+				return
+			}
+			f.fileModificationMutex.Lock()
+			delete(f.fileModificationTimers, event.Name)
+			f.fileModificationMutex.Unlock()
+		})
+		f.fileModificationMutex.Unlock()
+	}
+	f.fileModificationTimers[event.Name].Reset(time.Millisecond * 200)
 }
 
 func (f Fs) processNewFile(path string, chanFiles chan NewFile, info os.FileInfo) error {
