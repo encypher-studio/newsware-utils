@@ -224,7 +224,7 @@ func (f Fs) Watch(ctx context.Context, chanFiles chan NewFile) error {
 	}
 }
 
-// handleFileModification processes a file after two seconds without a WRITE event
+// handleFileModification processes a file after three seconds without a WRITE event
 func (f Fs) handleFileModification(event fsnotify.Event, chanFiles chan NewFile, info os.FileInfo, fsWatcher *fsnotify.Watcher) {
 	f.fileModificationMutex.RLock()
 	_, ok := f.fileModificationTimers[event.Name]
@@ -244,17 +244,17 @@ func (f Fs) handleFileModification(event fsnotify.Event, chanFiles chan NewFile,
 		})
 		f.fileModificationMutex.Unlock()
 	}
-	f.fileModificationTimers[event.Name].Reset(time.Second * 2)
+	f.fileModificationTimers[event.Name].Reset(time.Second * 3)
 }
 
 func (f Fs) processNewFile(path string, chanFiles chan NewFile, info os.FileInfo) error {
 	var err error
 
-	f.logger.Info("new file detected", zap.String("file", path))
+	f.logger.Info("new file detected", zap.String("path", path))
 	filename := filepath.Base(path)
 
 	if !f.isValidFile(filename) {
-		f.logger.Info("file ignored", zap.String("file", path))
+		f.logger.Info("file ignored", zap.String("path", path))
 		return nil
 	}
 
@@ -291,7 +291,7 @@ func (f Fs) processExistingFiles(dirs []string, chanFiles chan NewFile) error {
 			}
 
 			if !f.isValidFile(file.Name()) {
-				f.logger.Info("file ignored", zap.String("file", file.Name()))
+				f.logger.Info("file ignored", zap.String("path", file.Name()))
 				continue
 			}
 

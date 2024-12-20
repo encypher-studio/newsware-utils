@@ -57,28 +57,28 @@ func (f *FileWatcher) Run() {
 	for {
 		select {
 		case newFile := <-chanFiles:
-			f.logger.Info("file received for processing", zap.String("file", newFile.Path))
-			f.logger.Debug("file received", zap.String("file", newFile.Path), zap.String("data", string(newFile.Bytes)))
+			f.logger.Info("file received for processing", zap.String("path", newFile.Path))
+			f.logger.Debug("file received", zap.String("path", newFile.Path), zap.String("data", string(newFile.Bytes)))
 			// Process asynchronously
 			go func() {
 				news, err := f.parseFunc(newFile)
 				if err != nil {
 					if errors.Is(err, ErrIgnorableNews) {
-						f.logger.Info("ignorable news", zap.String("file", newFile.Path))
+						f.logger.Info("ignorable news", zap.String("path", newFile.Path))
 						err = f.fs.Delete(newFile)
 						if err != nil {
-							f.logger.Error("deleting ignorable file", err, zap.String("file", newFile.Path))
+							f.logger.Error("deleting ignorable file", err, zap.String("path", newFile.Path))
 						} else {
-							f.logger.Info("file deleted", zap.String("file", newFile.Path))
+							f.logger.Info("file deleted", zap.String("path", newFile.Path))
 						}
 						return
 					}
 
 					// Move file to unprocessable directory
-					f.logger.Error("parsing news", err, zap.String("file", newFile.Path))
+					f.logger.Error("parsing news", err, zap.String("path", newFile.Path))
 					err = f.fs.Unprocessable(newFile)
 					if err != nil {
-						f.logger.Error("moving file to unprocessable directory", err, zap.String("file", newFile.Path))
+						f.logger.Error("moving file to unprocessable directory", err, zap.String("path", newFile.Path))
 					}
 					return
 				}
@@ -88,18 +88,18 @@ func (f *FileWatcher) Run() {
 				err = f.indexer.Index(&news)
 				if err != nil {
 					// Send file again to the channel, so it can be processed again
-					f.logger.Error("indexing news", err, zap.String("file", newFile.Path))
+					f.logger.Error("indexing news", err, zap.String("path", newFile.Path))
 					chanFiles <- newFile
 					return
 				}
 
-				f.logger.Info("file indexed", zap.String("file", newFile.Path))
+				f.logger.Info("file indexed", zap.String("path", newFile.Path))
 
 				err = f.fs.Delete(newFile)
 				if err != nil {
-					f.logger.Error("deleting indexed file", err, zap.String("file", newFile.Path))
+					f.logger.Error("deleting indexed file", err, zap.String("path", newFile.Path))
 				} else {
-					f.logger.Info("file deleted", zap.String("file", newFile.Path))
+					f.logger.Info("file deleted", zap.String("path", newFile.Path))
 				}
 
 				indexmetrics.MetricDocumentsIndexed.WithLabelValues().Inc()
