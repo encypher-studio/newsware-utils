@@ -43,11 +43,12 @@ type IFs interface {
 
 type Fs struct {
 	Config
-	logger                 ecslogger.ILogger
-	eventRetries           map[string]int
-	ignoreFiles            []*regexp.Regexp
-	fileModificationTimers map[string]*time.Timer
-	fileModificationMutex  *sync.RWMutex
+	fileModificationTimeout time.Duration
+	logger                  ecslogger.ILogger
+	eventRetries            map[string]int
+	ignoreFiles             []*regexp.Regexp
+	fileModificationTimers  map[string]*time.Timer
+	fileModificationMutex   *sync.RWMutex
 }
 
 type Config struct {
@@ -79,6 +80,8 @@ func NewFs(config Config, logger ecslogger.ILogger) (Fs, error) {
 		config.IgnoreDirs[i] = filepath.Clean(dir)
 	}
 
+	config.Dir = filepath.Clean(config.Dir)
+
 	var ignoreFiles []*regexp.Regexp
 	for _, ignoreFile := range config.IgnoreFiles {
 		re, err := regexp.Compile(ignoreFile)
@@ -89,12 +92,13 @@ func NewFs(config Config, logger ecslogger.ILogger) (Fs, error) {
 	}
 
 	return Fs{
-		Config:                 config,
-		logger:                 logger,
-		eventRetries:           make(map[string]int),
-		ignoreFiles:            ignoreFiles,
-		fileModificationTimers: make(map[string]*time.Timer),
-		fileModificationMutex:  &sync.RWMutex{},
+		Config:                  config,
+		fileModificationTimeout: 3 * time.Second,
+		logger:                  logger,
+		eventRetries:            make(map[string]int),
+		ignoreFiles:             ignoreFiles,
+		fileModificationTimers:  make(map[string]*time.Timer),
+		fileModificationMutex:   &sync.RWMutex{},
 	}, nil
 }
 
@@ -171,7 +175,7 @@ func (f Fs) Watch(ctx context.Context, chanFiles chan NewFile) error {
 				// Add nested directories created after the parent directory
 				// If the directory is the root directory, ignore all directories in the ignoreDirs list
 				ignoreDirs := []string{}
-				if filepath.Dir(event.Name) == filepath.Clean(f.Dir) {
+				if filepath.Dir(event.Name) == f.Dir {
 					ignoreDirs = f.IgnoreDirs
 				}
 				dirs, err := findValidDirs(event.Name, ignoreDirs)
@@ -224,7 +228,7 @@ func (f Fs) Watch(ctx context.Context, chanFiles chan NewFile) error {
 	}
 }
 
-// handleFileModification processes a file after three seconds without a WRITE event
+// handleFileModification processes a file if no WRITE event is received before the timeout
 func (f Fs) handleFileModification(event fsnotify.Event, chanFiles chan NewFile, info os.FileInfo, fsWatcher *fsnotify.Watcher) {
 	f.fileModificationMutex.RLock()
 	_, ok := f.fileModificationTimers[event.Name]
@@ -244,7 +248,7 @@ func (f Fs) handleFileModification(event fsnotify.Event, chanFiles chan NewFile,
 		})
 		f.fileModificationMutex.Unlock()
 	}
-	f.fileModificationTimers[event.Name].Reset(time.Second * 3)
+	f.fileModificationTimers[event.Name].Reset(f.fileModificationTimeout)
 }
 
 func (f Fs) processNewFile(path string, chanFiles chan NewFile, info os.FileInfo) error {
@@ -269,7 +273,7 @@ func (f Fs) processNewFile(path string, chanFiles chan NewFile, info os.FileInfo
 	chanFiles <- NewFile{
 		Name:         filename,
 		Path:         path,
-		RelativePath: strings.Trim(path, f.Dir),
+		RelativePath: strings.TrimPrefix(path, f.Dir+"/"),
 		Bytes:        bytes,
 		ReceivedTime: info.ModTime().UTC(),
 	}

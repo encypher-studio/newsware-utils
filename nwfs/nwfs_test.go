@@ -23,6 +23,7 @@ func TestFs_Watch(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
+	fs.fileModificationTimeout = time.Millisecond * 200
 	baseTime := time.Now().UTC()
 
 	tests := []struct {
@@ -33,6 +34,43 @@ func TestFs_Watch(t *testing.T) {
 		expected              []NewFile
 		expectedErr           error
 	}{
+		{
+			name: "detect renames",
+			newFiles: []NewFile{
+				mockFile(fs, "1.ignore", baseTime.Add(-time.Hour)),
+				mockFile(fs, "nested2/2.ignore", baseTime.Add(-time.Hour)),
+				mockFile(fs, "ignore.xml", baseTime.Add(-time.Hour)),
+			},
+			mockFileModifications: func() {
+				moveFile(t, path.Join(fs.Dir, "1.ignore"), path.Join(fs.Dir, "1.notIgnore"))
+				moveFile(t, path.Join(fs.Dir, "nested2/2.ignore"), path.Join(fs.Dir, "nested2/2.notIgnore"))
+				moveFile(t, path.Join(fs.Dir, "ignore.xml"), path.Join(fs.Dir, "notIgnore.xml"))
+			},
+			expected: []NewFile{
+				{
+					Name:         "1.notIgnore",
+					Path:         path.Join(fs.Dir, "1.notIgnore"),
+					RelativePath: "1.notIgnore",
+					Bytes:        []byte("1.ignore"),
+					ReceivedTime: baseTime.Add(-time.Hour),
+				},
+				{
+					Name:         "2.notIgnore",
+					Path:         path.Join(fs.Dir, "nested2/2.notIgnore"),
+					RelativePath: "nested2/2.notIgnore",
+					Bytes:        []byte("2.ignore"),
+					ReceivedTime: baseTime.Add(-time.Hour),
+				},
+				{
+					Name:         "notIgnore.xml",
+					Path:         path.Join(fs.Dir, "notIgnore.xml"),
+					RelativePath: "notIgnore.xml",
+					Bytes:        []byte("ignore.xml"),
+					ReceivedTime: baseTime.Add(-time.Hour),
+				},
+			},
+			expectedErr: nil,
+		},
 		{
 			name: "preexisting files",
 			preexistingFiles: []NewFile{
@@ -142,40 +180,6 @@ func TestFs_Watch(t *testing.T) {
 			},
 			expectedErr: nil,
 		},
-		{
-			name: "detect renames",
-			newFiles: []NewFile{
-				mockFile(fs, "1.ignore", baseTime.Add(-time.Hour)),
-				mockFile(fs, "nested2/2.ignore", baseTime.Add(-time.Hour)),
-				mockFile(fs, "ignore.xml", baseTime.Add(-time.Hour)),
-			},
-			mockFileModifications: func() {
-				moveFile(t, path.Join(fs.Dir, "1.ignore"), path.Join(fs.Dir, "1.notIgnore"))
-				moveFile(t, path.Join(fs.Dir, "nested2/2.ignore"), path.Join(fs.Dir, "nested2/2.notIgnore"))
-				moveFile(t, path.Join(fs.Dir, "ignore.xml"), path.Join(fs.Dir, "notIgnore.xml"))
-			},
-			expected: []NewFile{
-				{
-					Name:         "1.notIgnore",
-					Path:         path.Join(fs.Dir, "1.notIgnore"),
-					Bytes:        []byte("1.ignore"),
-					ReceivedTime: baseTime.Add(-time.Hour),
-				},
-				{
-					Name:         "2.notIgnore",
-					Path:         path.Join(fs.Dir, "nested2/2.notIgnore"),
-					Bytes:        []byte("2.ignore"),
-					ReceivedTime: baseTime.Add(-time.Hour),
-				},
-				{
-					Name:         "notIgnore.xml",
-					Path:         path.Join(fs.Dir, "notIgnore.xml"),
-					Bytes:        []byte("ignore.xml"),
-					ReceivedTime: baseTime.Add(-time.Hour),
-				},
-			},
-			expectedErr: nil,
-		},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
@@ -268,8 +272,13 @@ func TestFs_Watch(t *testing.T) {
 					if actualFile.Name != expectedFile.Name {
 						t.Fatalf("expected file name %s, got %s", expectedFile.Name, actualFile.Name)
 					}
+
 					if string(actualFile.Bytes) != string(expectedFile.Bytes) {
 						t.Fatalf("expected file bytes %s, got %s", expectedFile.Bytes, actualFile.Bytes)
+					}
+
+					if actualFile.RelativePath != expectedFile.RelativePath {
+						t.Fatalf("expected file relative path %s, got %s", expectedFile.RelativePath, actualFile.RelativePath)
 					}
 
 					if delta := expectedFile.ReceivedTime.Sub(actualFile.ReceivedTime); delta > time.Millisecond*50 || delta < -time.Millisecond*50 {
@@ -290,9 +299,10 @@ func TestFs_Watch(t *testing.T) {
 
 func mockFile(fs Fs, relativePath string, receivedTime ...time.Time) NewFile {
 	nf := NewFile{
-		Name:  filepath.Base(relativePath),
-		Path:  path.Join(fs.Dir, relativePath),
-		Bytes: []byte(filepath.Base(relativePath)),
+		Name:         filepath.Base(relativePath),
+		Path:         path.Join(fs.Dir, relativePath),
+		RelativePath: relativePath,
+		Bytes:        []byte(filepath.Base(relativePath)),
 	}
 
 	if len(receivedTime) > 0 {
