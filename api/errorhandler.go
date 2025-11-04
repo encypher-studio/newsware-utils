@@ -7,7 +7,7 @@ import (
 	"github.com/encypher-studio/newsware-utils/api/apierror"
 	"github.com/encypher-studio/newsware-utils/api/response"
 	"github.com/encypher-studio/newsware-utils/ecslogger"
-	"github.com/gofiber/fiber/v2"
+	"github.com/gofiber/fiber/v3"
 )
 
 type IError interface {
@@ -17,7 +17,7 @@ type IError interface {
 }
 
 var ErrorHandler = func(l ecslogger.ILogger) fiber.ErrorHandler {
-	return func(c *fiber.Ctx, err error) error {
+	return func(c fiber.Ctx, err error) error {
 		code := fiber.StatusInternalServerError
 		var resp interface{}
 
