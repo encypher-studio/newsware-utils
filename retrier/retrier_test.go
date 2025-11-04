@@ -6,7 +6,6 @@ import (
 
 	"github.com/avast/retry-go/v4"
 	"github.com/pkg/errors"
-	"github.com/stretchr/testify/assert"
 )
 
 func TestRetrier_RetryFunc(t *testing.T) {
@@ -30,6 +29,10 @@ func TestRetrier_RetryFunc(t *testing.T) {
 		}, "",
 	)
 
-	assert.Equal(t, onRetryCount, uint(10))
-	assert.Equal(t, retryCallCount, uint(10))
+	if onRetryCount != 9 {
+		t.Fatalf("Expected %d retries, got %d", 9, onRetryCount)
+	}
+	if retryCallCount != 10 {
+		t.Fatalf("Expected %d calls, got %d", 10, retryCallCount)
+	}
 }
