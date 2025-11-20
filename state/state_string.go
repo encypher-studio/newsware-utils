@@ -33,7 +33,7 @@ func NewStateString(state *State, key string) (StateString, error) {
 }
 
 func (s *StateString) Get() string {
-	return fmt.Sprintf("%v", s.value)
+	return s.value
 }
 
 func (s *StateString) SaveState(state string) error {
