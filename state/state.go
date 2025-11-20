@@ -10,28 +10,28 @@ import (
 	"github.com/pkg/errors"
 )
 
-type state struct {
+type State struct {
 	filePath string
 	mutex    *sync.Mutex
 	state    map[string]interface{}
 }
 
-func newState(filePath string) (state, error) {
-	s := state{
+func NewState(filePath string) (State, error) {
+	s := State{
 		mutex:    &sync.Mutex{},
 		filePath: filePath,
 	}
 
 	err := s.initFromFile()
 	if err != nil {
-		return state{}, err
+		return State{}, err
 	}
 
 	return s, nil
 }
 
 // saveState stores the watcher state in i.stateDir/state.json
-func (s *state) saveState(key string, state interface{}) error {
+func (s *State) saveState(key string, state interface{}) error {
 	s.mutex.Lock()
 	defer s.mutex.Unlock()
 
@@ -60,7 +60,7 @@ func (s *state) saveState(key string, state interface{}) error {
 	return nil
 }
 
-func (s *state) ensureStateFile() (*os.File, error) {
+func (s *State) ensureStateFile() (*os.File, error) {
 	_, err := os.Stat(filepath.Dir(s.filePath))
 	if err != nil {
 		if os.IsNotExist(err) {
@@ -79,14 +79,14 @@ func (s *state) ensureStateFile() (*os.File, error) {
 	return f, nil
 }
 
-func (s *state) get(key string) (interface{}, error) {
+func (s *State) get(key string) (interface{}, error) {
 	s.mutex.Lock()
 	defer s.mutex.Unlock()
 
 	return s.state[key], nil
 }
 
-func (s *state) initFromFile() error {
+func (s *State) initFromFile() error {
 	s.state = make(map[string]interface{})
 
 	stateFile, err := s.ensureStateFile()

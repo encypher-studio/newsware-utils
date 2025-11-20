@@ -3,12 +3,12 @@ package state
 import "fmt"
 
 type StateString struct {
-	state *state
+	state *State
 	key   string
 	value string
 }
 
-func NewStateString(state *state, key string) (StateString, error) {
+func NewStateString(state *State, key string) (StateString, error) {
 	valueInterface, err := state.get(key)
 	if err != nil {
 		return StateString{}, err

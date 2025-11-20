@@ -15,7 +15,7 @@ const (
 )
 
 func Test_saveState(t *testing.T) {
-	s, err := newState(stateTestPath)
+	s, err := NewState(stateTestPath)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -28,7 +28,7 @@ func Test_saveState(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	// Test if state is persisted
+	// Test if State is persisted
 	f, err := s.ensureStateFile()
 	if err != nil {
 		t.Fatal(err)
@@ -44,7 +44,7 @@ func Test_saveState(t *testing.T) {
 		t.Fatalf("state not persisted, expected: %s, got: %s", expected, string(actual))
 	}
 
-	// Save second state
+	// Save second State
 	err = s.saveState("key2", "value2")
 	if err != nil {
 		t.Fatal(err)
@@ -65,7 +65,7 @@ func Test_saveState(t *testing.T) {
 		t.Fatalf("second state not persisted, expected: %s, got: %s", expected, string(actual))
 	}
 
-	// Overwrite state
+	// Overwrite State
 	err = s.saveState("key", "value3")
 	if err != nil {
 		t.Fatal(err)
@@ -106,7 +106,7 @@ func Test_state_initFromFile(t *testing.T) {
 			defer func() {
 				_ = os.RemoveAll(stateTestDir)
 			}()
-			s := &state{
+			s := &State{
 				filePath: stateTestPath,
 				mutex:    &sync.Mutex{},
 				state:    nil,

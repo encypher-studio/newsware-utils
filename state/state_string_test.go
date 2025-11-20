@@ -10,7 +10,7 @@ func TestStateString(t *testing.T) {
 		_ = os.RemoveAll(stateTestDir)
 	}()
 	// Test save
-	s, err := newState(stateTestPath)
+	s, err := NewState(stateTestPath)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -31,7 +31,7 @@ func TestStateString(t *testing.T) {
 	}
 
 	// Test reading from file
-	s, err = newState(stateTestPath)
+	s, err = NewState(stateTestPath)
 	if err != nil {
 		t.Fatal(err)
 	}
