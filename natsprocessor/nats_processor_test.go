@@ -66,18 +66,20 @@ func TestNatsProcessor_listen(t *testing.T) {
 		t.Fatalf("failed to connect to kv store: %v", err)
 	}
 
-	l, err := NewNatsProcessor(
-		Opts{
-			Js:        js,
+	l, err := NewWithJs(
+		OptsWithJs{
+			JetStream: js,
 			Bucket:    integrationCfg().Bucket,
-			QueueName: "TestNatsProcessor_listen",
-			Retrier: retrier.Retrier{
-				MaxRetries: 1,
-				MaxDelay:   time.Millisecond,
-				OnRetry:    func(n uint, err error, message string) {},
-			},
-			ProcessFunc: func(news *nwelastic.News) error {
-				return nil
+			Opts: Opts{
+				QueueName: "TestNatsProcessor_listen",
+				Retrier: retrier.Retrier{
+					MaxRetries: 1,
+					MaxDelay:   time.Millisecond,
+					OnRetry:    func(n uint, err error, message string) {},
+				},
+				ProcessFunc: func(news *nwelastic.News) error {
+					return nil
+				},
 			},
 		},
 	)
@@ -241,18 +243,20 @@ func TestNatsProcessor_Listen(t *testing.T) {
 				actualProcessNews = append(actualProcessNews, *n)
 				return nil
 			}
-			l, err := NewNatsProcessor(
-				Opts{
-					Js:        js,
+			l, err := NewWithJs(
+				OptsWithJs{
+					JetStream: js,
 					Bucket:    integrationCfg().Bucket,
-					QueueName: "TestListener_Listen_queue",
-					Retrier: retrier.Retrier{
-						MaxRetries: 1,
-						MaxDelay:   time.Millisecond,
-						OnRetry:    func(n uint, err error, message string) {},
-					},
-					ProcessFunc: func(n *nwelastic.News) error {
-						return nil
+					Opts: Opts{
+						QueueName: "TestListener_Listen_queue",
+						Retrier: retrier.Retrier{
+							MaxRetries: 1,
+							MaxDelay:   time.Millisecond,
+							OnRetry:    func(n uint, err error, message string) {},
+						},
+						ProcessFunc: func(n *nwelastic.News) error {
+							return nil
+						},
 					},
 				},
 			)

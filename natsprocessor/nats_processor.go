@@ -6,6 +6,7 @@ import (
 	"errors"
 	"time"
 
+	"github.com/encypher-studio/newsware-utils/nats_nw"
 	"github.com/encypher-studio/newsware-utils/nwelastic"
 	"github.com/encypher-studio/newsware-utils/retrier"
 	"github.com/nats-io/nats.go"
@@ -28,18 +29,36 @@ type NatsProcessor struct {
 }
 
 type Opts struct {
-	Js            IJetstream
-	Bucket        string
 	QueueName     string
 	Retrier       retrier.Retrier
 	ProcessFunc   func(*nwelastic.News) error
 	DeliverPolicy *nats.DeliverPolicy // Defaults to DeliverNewPolicy
 }
 
-// NewNatsProcessor creates a new listener
-func NewNatsProcessor(opts Opts) (NatsProcessor, error) {
+type OptsWithConf struct {
+	Opts
+	NatsConfig nats_nw.NatsConfig
+}
+
+type OptsWithJs struct {
+	Opts
+	JetStream IJetstream
+	Bucket    string
+}
+
+func New(opts OptsWithConf) (NatsProcessor, error) {
+	js, err := nats_nw.JetStream(opts.NatsConfig)
+	if err != nil {
+		return NatsProcessor{}, err
+	}
+
+	return NewWithJs(OptsWithJs{Opts: opts.Opts, JetStream: js, Bucket: opts.NatsConfig.Bucket})
+}
+
+// NewWithJs creates a new listener
+func NewWithJs(opts OptsWithJs) (NatsProcessor, error) {
 	np := NatsProcessor{
-		js:          opts.Js,
+		js:          opts.JetStream,
 		bucket:      opts.Bucket,
 		retrier:     opts.Retrier,
 		processFunc: opts.ProcessFunc,
