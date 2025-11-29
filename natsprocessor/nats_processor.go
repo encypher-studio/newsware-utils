@@ -27,49 +27,70 @@ type NatsProcessor struct {
 	processFunc  func(*nwelastic.News) error
 }
 
-// NewNatsProcessor creates a new listener
-func NewNatsProcessor(js IJetstream, bucket string, queueName string, retrier retrier.Retrier, processFunc func(*nwelastic.News) error) (NatsProcessor, error) {
-	return NatsProcessor{
-		js:          js,
-		bucket:      bucket,
-		retrier:     retrier,
-		processFunc: processFunc,
-		queueName:   queueName,
-	}, nil
+type Opts struct {
+	Js            IJetstream
+	Bucket        string
+	QueueName     string
+	Retrier       retrier.Retrier
+	ProcessFunc   func(*nwelastic.News) error
+	DeliverPolicy *nats.DeliverPolicy // Defaults to DeliverNewPolicy
 }
 
-// Listen listens for new messages
-func (l *NatsProcessor) listen(chanMsg chan *nats.Msg) error {
-	queueName := l.queueName + "-" + l.bucket
-	streamName := "KV_" + l.bucket
+// NewNatsProcessor creates a new listener
+func NewNatsProcessor(opts Opts) (NatsProcessor, error) {
+	np := NatsProcessor{
+		js:          opts.Js,
+		bucket:      opts.Bucket,
+		retrier:     opts.Retrier,
+		processFunc: opts.ProcessFunc,
+		queueName:   opts.QueueName,
+	}
 
-	_, err := l.js.ConsumerInfo(streamName, queueName)
+	var deliverPolicy nats.DeliverPolicy
+	if opts.DeliverPolicy == nil {
+		deliverPolicy = nats.DeliverNewPolicy
+	} else {
+		deliverPolicy = *opts.DeliverPolicy
+	}
+
+	_, err := np.js.ConsumerInfo(np.streamName(), np.queueName)
 	if err != nil {
 		if errors.Is(err, nats.ErrConsumerNotFound) {
-			_, err = l.js.AddConsumer(streamName, &nats.ConsumerConfig{
-				Durable:           queueName,
+			_, err = np.js.AddConsumer(np.streamName(), &nats.ConsumerConfig{
+				Durable:           np.queueName,
 				MaxAckPending:     -1,                     // No limit on the number of pending acks
 				InactiveThreshold: time.Hour * 24 * 180,   // Queue will be removed after 180 days of inactivity
 				AckPolicy:         nats.AckExplicitPolicy, // AckExplicit is required to prevent message loss
 				MaxDeliver:        256,
 				AckWait:           time.Minute,
-				DeliverSubject:    queueName,
-				DeliverGroup:      queueName,
+				DeliverSubject:    np.queueName,
+				DeliverGroup:      np.queueName,
+				DeliverPolicy:     deliverPolicy,
 			})
 			if err != nil {
-				return err
+				return NatsProcessor{}, err
 			}
 		} else {
-			return err
+			return NatsProcessor{}, err
 		}
 	}
 
+	return np, nil
+}
+
+// Gets the key value bucket stream name
+func (l *NatsProcessor) streamName() string {
+	return "KV_" + l.bucket
+}
+
+// Listen listens for new messages
+func (l *NatsProcessor) listen(chanMsg chan *nats.Msg) error {
 	s, err := l.js.ChanQueueSubscribe(
 		"$KV."+l.bucket+".*",
-		queueName,
+		l.queueName,
 		chanMsg,
 		nats.ManualAck(),
-		nats.Bind(streamName, queueName),
+		nats.Bind(l.streamName(), l.queueName),
 	)
 	if err != nil {
 		return err

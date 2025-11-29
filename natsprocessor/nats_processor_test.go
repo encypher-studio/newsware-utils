@@ -67,16 +67,18 @@ func TestNatsProcessor_listen(t *testing.T) {
 	}
 
 	l, err := NewNatsProcessor(
-		js,
-		integrationCfg().Bucket,
-		"TestNatsProcessor_listen",
-		retrier.Retrier{
-			MaxRetries: 1,
-			MaxDelay:   time.Millisecond,
-			OnRetry:    func(n uint, err error, message string) {},
-		},
-		func(news *nwelastic.News) error {
-			return nil
+		Opts{
+			Js:        js,
+			Bucket:    integrationCfg().Bucket,
+			QueueName: "TestNatsProcessor_listen",
+			Retrier: retrier.Retrier{
+				MaxRetries: 1,
+				MaxDelay:   time.Millisecond,
+				OnRetry:    func(n uint, err error, message string) {},
+			},
+			ProcessFunc: func(news *nwelastic.News) error {
+				return nil
+			},
 		},
 	)
 	if err != nil {
@@ -240,16 +242,18 @@ func TestNatsProcessor_Listen(t *testing.T) {
 				return nil
 			}
 			l, err := NewNatsProcessor(
-				js,
-				integrationCfg().Bucket,
-				"TestListener_Listen_queue",
-				retrier.Retrier{
-					MaxRetries: 1,
-					MaxDelay:   time.Millisecond,
-					OnRetry:    func(n uint, err error, message string) {},
-				},
-				func(n *nwelastic.News) error {
-					return nil
+				Opts{
+					Js:        js,
+					Bucket:    integrationCfg().Bucket,
+					QueueName: "TestListener_Listen_queue",
+					Retrier: retrier.Retrier{
+						MaxRetries: 1,
+						MaxDelay:   time.Millisecond,
+						OnRetry:    func(n uint, err error, message string) {},
+					},
+					ProcessFunc: func(n *nwelastic.News) error {
+						return nil
+					},
 				},
 			)
 			if err != nil {

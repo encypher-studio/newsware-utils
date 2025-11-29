@@ -14,7 +14,7 @@ import (
 
 var (
 	TestElasticConfig = ElasticConfig{
-		Addresses:   []string{"https://localhost:9200"},
+		Addresses:   []string{"http://localhost:9200"},
 		Username:    "elastic",
 		Password:    "changeme",
 		NewsIndex:   "nwelastic_tests",
@@ -250,7 +250,7 @@ func (r *newsRepositorySuite) TestNewsRepository_InsertBatch() {
 				r.FailNow("expected and actuals news lengths don't match")
 			}
 			for i, actualNewsItem := range actualNews {
-				r.Equal(tt.expectedNews[i].Id, resp.Hits.Hits[i].Id_, "wrong document _id")
+				r.Equal(tt.expectedNews[i].Id, *resp.Hits.Hits[i].Id_, "wrong document _id")
 				r.assertNewsEqual(tt.expectedNews[i], actualNewsItem)
 			}
 		})
@@ -326,7 +326,7 @@ func (r *newsRepositorySuite) TestNewsRepository_Insert() {
 				tt.expectedNews = tt.news
 			}
 
-			r.Equal(tt.expectedNews.Id, resp.Hits.Hits[0].Id_, "wrong document _id")
+			r.Equal(tt.expectedNews.Id, *resp.Hits.Hits[0].Id_, "wrong document _id")
 
 			r.assertNewsEqual(tt.expectedNews, actualNews)
 		})
