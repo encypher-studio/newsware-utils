@@ -93,7 +93,7 @@ func NewFs(config Config, logger ecslogger.ILogger) (Fs, error) {
 
 	return Fs{
 		Config:                  config,
-		fileModificationTimeout: 3 * time.Second,
+		fileModificationTimeout: 60 * time.Second,
 		logger:                  logger,
 		eventRetries:            make(map[string]int),
 		ignoreFiles:             ignoreFiles,
