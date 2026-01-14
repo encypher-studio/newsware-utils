@@ -1,6 +1,6 @@
 module github.com/encypher-studio/newsware-utils
 
-go 1.25.3
+go 1.25.4
 
 require (
 	github.com/avast/retry-go/v4 v4.7.0

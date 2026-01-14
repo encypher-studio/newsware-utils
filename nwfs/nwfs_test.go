@@ -297,6 +297,88 @@ func TestFs_Watch(t *testing.T) {
 	}
 }
 
+func TestFs_Unprocessable(t *testing.T) {
+	dir := "./TestFs_Unprocessable"
+
+	tests := []struct {
+		name         string
+		newFile      NewFile
+		expectedPath string
+	}{
+		{
+			name: "not move",
+			newFile: NewFile{
+				Name:         "1",
+				Path:         dir + "/unprocessable/1",
+				RelativePath: "unprocessable/1",
+				Bytes:        nil,
+			},
+			expectedPath: dir + "/unprocessable/1",
+		},
+		{
+			name: "not move nested",
+			newFile: NewFile{
+				Name:         "1",
+				Path:         dir + "/unprocessable/test2/1",
+				RelativePath: "unprocessable/test2/1",
+				Bytes:        nil,
+			},
+			expectedPath: dir + "/unprocessable/test2/1",
+		},
+		{
+			name: "move",
+			newFile: NewFile{
+				Name:         "1",
+				Path:         dir + "/1",
+				RelativePath: "1",
+				Bytes:        nil,
+			},
+			expectedPath: dir + "/unprocessable/1",
+		},
+		{
+			name: "move nested",
+			newFile: NewFile{
+				Name:         "1",
+				Path:         dir + "/test/test2/1",
+				RelativePath: "test/test2/1",
+				Bytes:        nil,
+			},
+			expectedPath: dir + "/unprocessable/test/test2/1",
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			fs, err := NewFs(Config{
+				Dir: dir,
+			}, mockLogger{})
+			if err != nil {
+				t.Fatal(err)
+			}
+
+			os.MkdirAll(filepath.Dir(tt.newFile.Path), 0755)
+			defer os.RemoveAll(dir)
+
+			f, err := os.Create(tt.newFile.Path)
+			if err != nil {
+				t.Fatal(err)
+			}
+			f.WriteString("test")
+			f.Sync()
+			f.Close()
+
+			err = fs.Unprocessable(tt.newFile)
+			if err != nil {
+				t.Fatal(err)
+			}
+
+			_, err = os.Stat(tt.expectedPath)
+			if err != nil {
+				t.Fatal(err)
+			}
+		})
+	}
+}
+
 func mockFile(fs Fs, relativePath string, receivedTime ...time.Time) NewFile {
 	nf := NewFile{
 		Name:         filepath.Base(relativePath),

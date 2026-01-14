@@ -375,7 +375,18 @@ func (f Fs) Delete(file NewFile) error {
 
 // Unprocessable moves a file to unprocessable directory
 func (f Fs) Unprocessable(file NewFile) error {
-	targetPath := path.Join(f.Dir, "unprocessable", file.RelativePath)
+	relativePathSplit := splitPath(file.RelativePath)
+	if len(relativePathSplit) == 0 {
+		return fmt.Errorf("invalid relative path: %s", file.RelativePath)
+	}
+
+	var targetPath string
+	if relativePathSplit[0] != "unprocessable" {
+		targetPath = path.Join(f.Dir, "unprocessable", file.RelativePath)
+	} else {
+		targetPath = path.Join(f.Dir, file.RelativePath)
+	}
+
 	err := os.Rename(file.Path, targetPath)
 	if err != nil {
 		if errors.Is(err, os.ErrNotExist) {
@@ -391,4 +402,28 @@ func (f Fs) Unprocessable(file NewFile) error {
 	}
 
 	return nil
+}
+
+func splitPath(path string) []string {
+	var parts []string
+	for {
+		subPath := filepath.Clean(path)
+		dir, file := filepath.Split(subPath)
+
+		if file == "" {
+			if dir != "" && dir != string(filepath.Separator) {
+				parts = append(parts, filepath.Clean(dir))
+			}
+			break
+		}
+		parts = append(parts, file)
+
+		if dir == "" || dir == string(filepath.Separator) {
+			break
+		}
+		path = dir
+	}
+
+	slices.Reverse(parts)
+	return parts
 }
