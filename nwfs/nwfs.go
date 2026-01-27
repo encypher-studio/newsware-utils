@@ -46,6 +46,7 @@ type Fs struct {
 	fileModificationTimeout time.Duration
 	logger                  ecslogger.ILogger
 	eventRetries            map[string]int
+	eventRetriesMutex       *sync.Mutex
 	ignoreFiles             []*regexp.Regexp
 	fileModificationTimers  map[string]*time.Timer
 	fileModificationMutex   *sync.RWMutex
@@ -96,6 +97,7 @@ func NewFs(config Config, logger ecslogger.ILogger) (Fs, error) {
 		fileModificationTimeout: 60 * time.Second,
 		logger:                  logger,
 		eventRetries:            make(map[string]int),
+		eventRetriesMutex:       &sync.Mutex{},
 		ignoreFiles:             ignoreFiles,
 		fileModificationTimers:  make(map[string]*time.Timer),
 		fileModificationMutex:   &sync.RWMutex{},
@@ -144,10 +146,13 @@ func (f Fs) Watch(ctx context.Context, chanFiles chan NewFile) error {
 
 			f.logger.Debug("event received", zap.String("name", event.Name), zap.String("event", event.String()))
 
-			f.eventRetries[event.Name]++
-			if f.eventRetries[event.Name] > 10 {
-				f.logger.Error("event retry limit reached", nil, zap.String("name", event.Name))
-				continue
+			// We can have an unlimited number of writes, but not Create and CloseWrite
+			if event.Has(fsnotify.Create) || event.Has(fsnotify.UnportableCloseWrite) {
+				f.eventRetries[event.Name]++
+				if f.eventRetries[event.Name] > 20 {
+					f.logger.Error("event retry limit reached", nil, zap.String("event", event.String()))
+					continue
+				}
 			}
 
 			info, err := os.Stat(event.Name)
@@ -203,21 +208,7 @@ func (f Fs) Watch(ctx context.Context, chanFiles chan NewFile) error {
 					continue
 				}
 			case fsnotify.UnportableCloseWrite:
-				f.fileModificationMutex.RLock()
-				timer := f.fileModificationTimers[event.Name]
-				f.fileModificationMutex.RUnlock()
-				if timer != nil {
-					timer.Stop()
-					f.fileModificationMutex.Lock()
-					delete(f.fileModificationTimers, event.Name)
-					f.fileModificationMutex.Unlock()
-				}
-				err := f.processNewFile(event.Name, chanFiles, info)
-				if err != nil {
-					f.logger.Error("processing finished event", err, zap.String("name", event.Name))
-					fsWatcher.Events <- event
-					continue
-				}
+				f.handleCloseWrite(event, chanFiles, info, fsWatcher)
 			}
 		case err, ok := <-fsWatcher.Errors:
 			if !ok {
@@ -236,19 +227,34 @@ func (f Fs) handleFileModification(event fsnotify.Event, chanFiles chan NewFile,
 	if !ok {
 		f.fileModificationMutex.Lock()
 		f.fileModificationTimers[event.Name] = time.AfterFunc(math.MaxInt64, func() {
-			err := f.processNewFile(event.Name, chanFiles, info)
-			if err != nil {
-				f.logger.Error("processing finished event", err, zap.String("name", event.Name))
-				fsWatcher.Events <- event
-				return
-			}
-			f.fileModificationMutex.Lock()
-			delete(f.fileModificationTimers, event.Name)
-			f.fileModificationMutex.Unlock()
+			f.handleCloseWrite(event, chanFiles, info, fsWatcher)
 		})
 		f.fileModificationMutex.Unlock()
 	}
 	f.fileModificationTimers[event.Name].Reset(f.fileModificationTimeout)
+}
+
+func (f Fs) handleCloseWrite(event fsnotify.Event, chanFiles chan NewFile, info os.FileInfo, fsWatcher *fsnotify.Watcher) {
+	f.fileModificationMutex.RLock()
+	timer := f.fileModificationTimers[event.Name]
+	f.fileModificationMutex.RUnlock()
+	if timer != nil {
+		timer.Stop()
+		f.fileModificationMutex.Lock()
+		delete(f.fileModificationTimers, event.Name)
+		f.fileModificationMutex.Unlock()
+	}
+
+	err := f.processNewFile(event.Name, chanFiles, info)
+	if err != nil {
+		f.logger.Error("processing finished event", err, zap.String("name", event.Name))
+		fsWatcher.Events <- event
+		return
+	}
+
+	f.eventRetriesMutex.Lock()
+	delete(f.eventRetries, event.Name)
+	f.eventRetriesMutex.Unlock()
 }
 
 func (f Fs) processNewFile(path string, chanFiles chan NewFile, info os.FileInfo) error {
