@@ -47,7 +47,7 @@ type OptsWithJs struct {
 }
 
 func New(opts OptsWithConf) (NatsProcessor, error) {
-	js, err := nats_nw.JetStream(opts.NatsConfig)
+	js, err := opts.NatsConfig.JetStream()
 	if err != nil {
 		return NatsProcessor{}, err
 	}
