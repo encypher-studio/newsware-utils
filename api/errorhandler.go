@@ -21,8 +21,7 @@ var ErrorHandler = func(l ecslogger.ILogger) fiber.ErrorHandler {
 		code := fiber.StatusInternalServerError
 		var resp interface{}
 
-		var e *fiber.Error
-		if errors.As(err, &e) {
+		if e, ok := errors.AsType[*fiber.Error](err); ok {
 			code = e.Code
 		} else if apiErr, ok := err.(IError); ok {
 			resp = apiErr.Response()
