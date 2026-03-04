@@ -12,8 +12,9 @@ type NatsConfig struct {
 	Bucket string
 }
 
-func Nats(cfg NatsConfig) (*nats.Conn, error) {
-	conn, err := nats.Connect(cfg.Url, nats.Token(cfg.Token))
+func (cfg NatsConfig) Nats(options ...nats.Option) (*nats.Conn, error) {
+	options = append(options, nats.Token(cfg.Token))
+	conn, err := nats.Connect(cfg.Url, options...)
 	if err != nil {
 		return nil, fmt.Errorf("failed to connect to nats: %v", err)
 	}
@@ -30,8 +31,8 @@ func jetStreamConnect(conn *nats.Conn) (nats.JetStreamContext, error) {
 	return js, nil
 }
 
-func JetStream(cfg NatsConfig) (nats.JetStreamContext, error) {
-	conn, err := Nats(cfg)
+func (cfg NatsConfig) JetStream(options ...nats.Option) (nats.JetStreamContext, error) {
+	conn, err := cfg.Nats(options...)
 	if err != nil {
 		return nil, err
 	}
