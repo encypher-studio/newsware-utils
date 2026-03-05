@@ -12,8 +12,23 @@ type NatsConfig struct {
 	Bucket string
 }
 
-func (cfg NatsConfig) Nats(options ...nats.Option) (*nats.Conn, error) {
+func (cfg NatsConfig) Nats(closedHandler func(*nats.Conn), options ...nats.Option) (*nats.Conn, error) {
 	options = append(options, nats.Token(cfg.Token))
+	options = append(options, nats.ClosedHandler(closedHandler))
+
+	// Add custom defaults if not passed to options
+	tempOpts := nats.GetDefaultOptions()
+	for _, opt := range options {
+		err := opt(&tempOpts)
+		if err != nil {
+			return nil, err
+		}
+	}
+
+	if tempOpts.MaxReconnect == nats.DefaultMaxReconnect {
+		options = append(options, nats.MaxReconnects(10)) // Approx 20 seconds
+	}
+
 	conn, err := nats.Connect(cfg.Url, options...)
 	if err != nil {
 		return nil, fmt.Errorf("failed to connect to nats: %v", err)
@@ -31,8 +46,8 @@ func jetStreamConnect(conn *nats.Conn) (nats.JetStreamContext, error) {
 	return js, nil
 }
 
-func (cfg NatsConfig) JetStream(options ...nats.Option) (nats.JetStreamContext, error) {
-	conn, err := cfg.Nats(options...)
+func (cfg NatsConfig) JetStream(closedHandler func(*nats.Conn), options ...nats.Option) (nats.JetStreamContext, error) {
+	conn, err := cfg.Nats(closedHandler, options...)
 	if err != nil {
 		return nil, err
 	}

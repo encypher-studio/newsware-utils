@@ -46,8 +46,8 @@ type OptsWithJs struct {
 	Bucket    string
 }
 
-func New(opts OptsWithConf, options ...nats.Option) (NatsProcessor, error) {
-	js, err := opts.NatsConfig.JetStream(options...)
+func New(opts OptsWithConf, natsClosedHandler func(*nats.Conn), options ...nats.Option) (NatsProcessor, error) {
+	js, err := opts.NatsConfig.JetStream(natsClosedHandler, options...)
 	if err != nil {
 		return NatsProcessor{}, err
 	}
