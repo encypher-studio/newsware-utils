@@ -10,7 +10,6 @@ type BodyConfig struct {
 type RSSFeedConfig struct {
 	URL          string        `yaml:"url"`
 	Source       string        `yaml:"source"`
-	TickerRegex  string        `yaml:"tickerRegex"`
 	PollInterval time.Duration `yaml:"pollInterval"`
 	Body         BodyConfig    `yaml:"body"`
 }

@@ -23,31 +23,31 @@ type record struct {
 }
 
 type RSSFeed struct {
-	URL      string
-	PollTime time.Duration
-	source   string
-	state    *state.StateString
-	ticker   ITickerParser
-	body     BodyConfig
-	indexer  indexer.Indexer
-	logger   ecslogger.ILogger
+	URL          string
+	PollTime     time.Duration
+	source       string
+	state        *state.StateString
+	tickerParser ITickerParser
+	body         BodyConfig
+	indexer      indexer.Indexer
+	logger       ecslogger.ILogger
 }
 
-func NewRSSFeed(cfg RSSFeedConfig, s *state.State, indexer indexer.Indexer, logger ecslogger.ILogger) (RSSFeed, error) {
+func NewRSSFeed(cfg RSSFeedConfig, tickerParser ITickerParser, s *state.State, indexer indexer.Indexer, logger ecslogger.ILogger) (RSSFeed, error) {
 	ss, err := state.NewStateString(s, cfg.URL)
 	if err != nil {
 		return RSSFeed{}, err
 	}
 
 	return RSSFeed{
-		URL:      cfg.URL,
-		PollTime: cfg.PollInterval,
-		source:   cfg.Source,
-		state:    &ss,
-		ticker:   NewTickerParserRegex(cfg.TickerRegex),
-		body:     cfg.Body,
-		indexer:  indexer,
-		logger:   logger,
+		URL:          cfg.URL,
+		PollTime:     cfg.PollInterval,
+		source:       cfg.Source,
+		state:        &ss,
+		tickerParser: tickerParser,
+		body:         cfg.Body,
+		indexer:      indexer,
+		logger:       logger,
 	}, nil
 }
 
@@ -189,9 +189,9 @@ func (r RSSFeed) itemToRecord(item *gofeed.Item, receivedTime time.Time) (record
 		id: id,
 		news: &nwelastic.News{
 			Headline:        item.Title,
-			Body:            strings.Join(bodyParts, "\n"),
+			Body:            strings.Join(bodyParts, "\n\n"),
 			Source:          r.source,
-			Tickers:         r.ticker.Parse(item.Categories),
+			Tickers:         r.tickerParser.Parse(item.Categories),
 			Link:            item.Link,
 			PublicationTime: *item.PublishedParsed,
 			ReceivedTime:    receivedTime,
