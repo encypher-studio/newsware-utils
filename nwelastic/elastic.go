@@ -100,9 +100,15 @@ func (e *Elastic) Get(index string, documentId string) *get.Get {
 }
 
 func (e *Elastic) elasticClientConfig() elasticsearch.Config {
-	elasticTransport := http.DefaultTransport.(*http.Transport)
+	// Clone rather than mutate http.DefaultTransport: that transport is shared process-wide
+	// (e.g. the Firebase Admin SDK clones it too), so tuning connection pooling for Elastic
+	// here must not leak into unrelated HTTP clients.
+	elasticTransport := http.DefaultTransport.(*http.Transport).Clone()
 	elasticTransport.TLSClientConfig = &tls.Config{
 		InsecureSkipVerify: true,
+	}
+	if e.Config.MaxConnsPerHost > 0 {
+		elasticTransport.MaxConnsPerHost = e.Config.MaxConnsPerHost
 	}
 
 	elasticConfig := elasticsearch.Config{
