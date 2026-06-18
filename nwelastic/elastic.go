@@ -22,6 +22,11 @@ type Elastic struct {
 	Config      ElasticConfig
 	TypedClient *elasticsearch.TypedClient
 	client      *elasticsearch.Client
+	// Transport, if set, is used as-is instead of the default transport built from
+	// Config (TLS + MaxConnsPerHost). Callers needing custom behavior (e.g. response-body
+	// draining for better connection reuse) can build on top of NewTransport(Config) and
+	// assign the result here before calling StartClient()/StartTypedClient().
+	Transport http.RoundTripper
 }
 
 func NewElastic(config ElasticConfig) Elastic {
@@ -99,23 +104,34 @@ func (e *Elastic) Get(index string, documentId string) *get.Get {
 	return e.TypedClient.Get(index, documentId)
 }
 
-func (e *Elastic) elasticClientConfig() elasticsearch.Config {
-	// Clone rather than mutate http.DefaultTransport: that transport is shared process-wide
-	// (e.g. the Firebase Admin SDK clones it too), so tuning connection pooling for Elastic
-	// here must not leak into unrelated HTTP clients.
+// NewTransport builds the default *http.Transport used for an Elastic connection: cloned
+// rather than mutating http.DefaultTransport (that transport is shared process-wide, e.g.
+// the Firebase Admin SDK clones it too, so tuning connection pooling for Elastic here must
+// not leak into unrelated HTTP clients), with TLS verification relaxed and MaxConnsPerHost
+// applied if configured. Exposed so callers can wrap the result with their own
+// http.RoundTripper (e.g. for response-body draining) and assign it to Elastic.Transport.
+func NewTransport(config ElasticConfig) *http.Transport {
 	elasticTransport := http.DefaultTransport.(*http.Transport).Clone()
 	elasticTransport.TLSClientConfig = &tls.Config{
 		InsecureSkipVerify: true,
 	}
-	if e.Config.MaxConnsPerHost > 0 {
-		elasticTransport.MaxConnsPerHost = e.Config.MaxConnsPerHost
+	if config.MaxConnsPerHost > 0 {
+		elasticTransport.MaxConnsPerHost = config.MaxConnsPerHost
+	}
+	return elasticTransport
+}
+
+func (e *Elastic) elasticClientConfig() elasticsearch.Config {
+	transport := e.Transport
+	if transport == nil {
+		transport = NewTransport(e.Config)
 	}
 
 	elasticConfig := elasticsearch.Config{
 		Addresses: e.Config.Addresses,
 		Username:  e.Config.Username,
 		Password:  e.Config.Password,
-		Transport: elasticTransport,
+		Transport: transport,
 	}
 
 	if e.Config.LogRequests {
