@@ -7,12 +7,11 @@ import (
 	"strings"
 	"time"
 
-	"github.com/encypher-studio/newsware-utils/ecslogger"
 	"github.com/encypher-studio/newsware-utils/indexer"
 	"github.com/encypher-studio/newsware-utils/nwelastic"
 	"github.com/encypher-studio/newsware-utils/state"
 	"github.com/mmcdole/gofeed"
-	"go.uber.org/zap"
+	"github.com/rs/zerolog"
 )
 
 var ErrNoBody = errors.New("no body")
@@ -30,10 +29,10 @@ type RSSFeed struct {
 	tickerParser ITickerParser
 	body         BodyConfig
 	indexer      indexer.Indexer
-	logger       ecslogger.ILogger
+	logger       zerolog.Logger
 }
 
-func NewRSSFeed(cfg RSSFeedConfig, tickerParser ITickerParser, s *state.State, indexer indexer.Indexer, logger ecslogger.ILogger) (RSSFeed, error) {
+func NewRSSFeed(cfg RSSFeedConfig, tickerParser ITickerParser, s *state.State, indexer indexer.Indexer, logger zerolog.Logger) (RSSFeed, error) {
 	ss, err := state.NewStateString(s, cfg.URL)
 	if err != nil {
 		return RSSFeed{}, err
@@ -69,13 +68,12 @@ func (r RSSFeed) Poll(ctx context.Context) error {
 					return err
 				}
 
-				r.logger.Debug(
-					"indexed",
-					zap.String("feed", r.URL),
-					zap.String("id", n.id),
-					zap.String("headline", n.news.Headline),
-					zap.Time("publicationTime", n.news.PublicationTime),
-				)
+				r.logger.Debug().
+					Str("feed", r.URL).
+					Str("id", n.id).
+					Str("headline", n.news.Headline).
+					Time("publicationTime", n.news.PublicationTime).
+					Msg("indexed")
 
 				err = r.state.SaveState(n.id)
 				if err != nil {
@@ -111,7 +109,7 @@ func (r RSSFeed) newRecords() ([]record, error) {
 	for i := lastIdIndex - 1; i >= 0; i-- {
 		item := feed.Items[i]
 
-		r.logger.Debug("processing item", zap.String("feed", r.URL), zap.String("item", fmt.Sprintf("%+v", item)))
+		r.logger.Debug().Str("feed", r.URL).Str("item", fmt.Sprintf("%+v", item)).Msg("processing item")
 
 		id, err := getId(item)
 		if err != nil {

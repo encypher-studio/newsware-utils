@@ -7,6 +7,7 @@ import (
 
 	"github.com/encypher-studio/newsware-utils/nwelastic"
 	"github.com/encypher-studio/newsware-utils/nwfs"
+	"github.com/rs/zerolog"
 )
 
 func TestFileWatcher_Run(t *testing.T) {
@@ -74,7 +75,7 @@ func TestFileWatcher_Run(t *testing.T) {
 				indexer: &mockIndexer{
 					rets: make([]error, len(tt.rets)),
 				},
-				logger: mockLogger{},
+				logger: zerolog.Nop(),
 			}
 
 			go f.Run()

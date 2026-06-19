@@ -14,9 +14,8 @@ import (
 	"sync"
 	"time"
 
-	"github.com/encypher-studio/newsware-utils/ecslogger"
+	"github.com/rs/zerolog"
 	"github.com/said1296/fsnotify"
-	"go.uber.org/zap"
 )
 
 var (
@@ -44,7 +43,7 @@ type IFs interface {
 type Fs struct {
 	Config
 	fileModificationTimeout time.Duration
-	logger                  ecslogger.ILogger
+	logger                  zerolog.Logger
 	eventRetries            map[string]int
 	eventRetriesMutex       *sync.Mutex
 	ignoreFiles             []*regexp.Regexp
@@ -68,7 +67,7 @@ func (c Config) validate() error {
 }
 
 // NewFs creates a new Fs instance.
-func NewFs(config Config, logger ecslogger.ILogger) (Fs, error) {
+func NewFs(config Config, logger zerolog.Logger) (Fs, error) {
 	err := config.validate()
 	if err != nil {
 		return Fs{}, err
@@ -136,7 +135,7 @@ func (f Fs) Watch(ctx context.Context, chanFiles chan NewFile) error {
 		select {
 		case event, ok := <-fsWatcher.Events:
 			if !ok {
-				f.logger.Info("fsWatcher.Events channel closed")
+				f.logger.Info().Msg("fsWatcher.Events channel closed")
 				return nil
 			}
 
@@ -144,13 +143,13 @@ func (f Fs) Watch(ctx context.Context, chanFiles chan NewFile) error {
 				continue
 			}
 
-			f.logger.Debug("event received", zap.String("name", event.Name), zap.String("event", event.String()))
+			f.logger.Debug().Str("name", event.Name).Str("event", event.String()).Msg("event received")
 
 			// We can have an unlimited number of writes, but not Create and CloseWrite
 			if event.Has(fsnotify.Create) || event.Has(fsnotify.UnportableCloseWrite) {
 				f.eventRetries[event.Name]++
 				if f.eventRetries[event.Name] > 20 {
-					f.logger.Error("event retry limit reached", nil, zap.String("event", event.String()))
+					f.logger.Error().Str("event", event.String()).Msg("event retry limit reached")
 					continue
 				}
 			}
@@ -158,10 +157,10 @@ func (f Fs) Watch(ctx context.Context, chanFiles chan NewFile) error {
 			info, err := os.Stat(event.Name)
 			if err != nil {
 				if os.IsNotExist(err) {
-					f.logger.Error("file not found", err, zap.String("name", event.Name))
+					f.logger.Error().Err(err).Str("name", event.Name).Msg("file not found")
 					continue
 				}
-				f.logger.Error("getting file info", err, zap.String("name", event.Name))
+				f.logger.Error().Err(err).Str("name", event.Name).Msg("getting file info")
 				fsWatcher.Events <- event
 				continue
 			}
@@ -175,7 +174,7 @@ func (f Fs) Watch(ctx context.Context, chanFiles chan NewFile) error {
 					continue
 				}
 
-				f.logger.Info("new directory detected", zap.String("name", event.Name))
+				f.logger.Info().Str("name", event.Name).Msg("new directory detected")
 
 				// Add nested directories created after the parent directory
 				// If the directory is the root directory, ignore all directories in the ignoreDirs list
@@ -185,16 +184,16 @@ func (f Fs) Watch(ctx context.Context, chanFiles chan NewFile) error {
 				}
 				dirs, err := findValidDirs(event.Name, ignoreDirs)
 				if err != nil {
-					f.logger.Error("finding valid directories", err, zap.String("name", event.Name))
+					f.logger.Error().Err(err).Str("name", event.Name).Msg("finding valid directories")
 					fsWatcher.Events <- event
 					continue
 				}
 
 				for _, dir := range dirs {
-					f.logger.Info("adding directory to watch list", zap.String("name", dir))
+					f.logger.Info().Str("name", dir).Msg("adding directory to watch list")
 					err = fsWatcher.AddWith(dir, fsnotify.WithOps(opsFilter))
 					if err != nil {
-						f.logger.Error("adding directory to watch list", err, zap.String("name", dir))
+						f.logger.Error().Err(err).Str("name", dir).Msg("adding directory to watch list")
 						fsWatcher.Events <- event
 						continue
 					}
@@ -203,7 +202,7 @@ func (f Fs) Watch(ctx context.Context, chanFiles chan NewFile) error {
 				// Process any files uploaded while the directory was being added
 				err = f.processExistingFiles(dirs, chanFiles)
 				if err != nil {
-					f.logger.Error("processing existing files in new directory", err, zap.String("name", event.Name))
+					f.logger.Error().Err(err).Str("name", event.Name).Msg("processing existing files in new directory")
 					fsWatcher.Events <- event
 					continue
 				}
@@ -247,7 +246,7 @@ func (f Fs) handleCloseWrite(event fsnotify.Event, chanFiles chan NewFile, info 
 
 	err := f.processNewFile(event.Name, chanFiles, info)
 	if err != nil {
-		f.logger.Error("processing finished event", err, zap.String("name", event.Name))
+		f.logger.Error().Err(err).Str("name", event.Name).Msg("processing finished event")
 		fsWatcher.Events <- event
 		return
 	}
@@ -260,11 +259,11 @@ func (f Fs) handleCloseWrite(event fsnotify.Event, chanFiles chan NewFile, info 
 func (f Fs) processNewFile(path string, chanFiles chan NewFile, info os.FileInfo) error {
 	var err error
 
-	f.logger.Info("new file detected", zap.String("path", path))
+	f.logger.Info().Str("path", path).Msg("new file detected")
 	filename := filepath.Base(path)
 
 	if !f.isValidFile(filename) {
-		f.logger.Info("file ignored", zap.String("path", path))
+		f.logger.Info().Str("path", path).Msg("file ignored")
 		return nil
 	}
 
@@ -289,7 +288,7 @@ func (f Fs) processNewFile(path string, chanFiles chan NewFile, info os.FileInfo
 
 func (f Fs) processExistingFiles(dirs []string, chanFiles chan NewFile) error {
 	for _, dir := range dirs {
-		f.logger.Info("looking for files", zap.String("dir", dir))
+		f.logger.Info().Str("dir", dir).Msg("looking for files")
 		files, err := os.ReadDir(dir)
 		if err != nil {
 			return err
@@ -301,7 +300,7 @@ func (f Fs) processExistingFiles(dirs []string, chanFiles chan NewFile) error {
 			}
 
 			if !f.isValidFile(file.Name()) {
-				f.logger.Info("file ignored", zap.String("path", file.Name()))
+				f.logger.Info().Str("path", file.Name()).Msg("file ignored")
 				continue
 			}
 

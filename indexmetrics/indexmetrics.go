@@ -1,12 +1,12 @@
 package indexmetrics
 
 import (
+	"fmt"
 	"net/http"
-
-	"github.com/encypher-studio/newsware-utils/ecslogger"
 
 	"github.com/prometheus/client_golang/prometheus"
 	"github.com/prometheus/client_golang/prometheus/promhttp"
+	"github.com/rs/zerolog"
 )
 
 var (
@@ -45,6 +45,12 @@ func init() {
 	}
 }
 
-func Handle(log *ecslogger.Logger) http.Handler {
-	return promhttp.HandlerFor(prometheus.DefaultGatherer, promhttp.HandlerOpts{ErrorLog: log})
+type zerologPromhttpLogger struct{ log zerolog.Logger }
+
+func (l zerologPromhttpLogger) Println(v ...interface{}) {
+	l.log.Error().Msg(fmt.Sprint(v...))
+}
+
+func Handle(log zerolog.Logger) http.Handler {
+	return promhttp.HandlerFor(prometheus.DefaultGatherer, promhttp.HandlerOpts{ErrorLog: zerologPromhttpLogger{log}})
 }

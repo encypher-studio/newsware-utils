@@ -6,8 +6,8 @@ import (
 
 	"github.com/encypher-studio/newsware-utils/api/apierror"
 	"github.com/encypher-studio/newsware-utils/api/response"
-	"github.com/encypher-studio/newsware-utils/ecslogger"
 	"github.com/gofiber/fiber/v3"
+	"github.com/rs/zerolog"
 )
 
 type IError interface {
@@ -16,7 +16,7 @@ type IError interface {
 	Response() interface{}
 }
 
-var ErrorHandler = func(l ecslogger.ILogger) fiber.ErrorHandler {
+var ErrorHandler = func(l zerolog.Logger) fiber.ErrorHandler {
 	return func(c fiber.Ctx, err error) error {
 		code := fiber.StatusInternalServerError
 		var resp interface{}
@@ -32,7 +32,7 @@ var ErrorHandler = func(l ecslogger.ILogger) fiber.ErrorHandler {
 			resp = response.Error(apierror.New(strconv.Itoa(code), err.Error(), code))
 		}
 
-		l.Error(c.Path(), err)
+		l.Error().Err(err).Str("path", c.Path()).Msg("request error")
 		return c.Status(code).JSON(resp)
 	}
 }

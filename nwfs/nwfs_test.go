@@ -11,6 +11,8 @@ import (
 	"strconv"
 	"testing"
 	"time"
+
+	"github.com/rs/zerolog"
 )
 
 func TestFs_Watch(t *testing.T) {
@@ -19,7 +21,7 @@ func TestFs_Watch(t *testing.T) {
 	fs, err := NewFs(Config{
 		Dir:         dir,
 		IgnoreFiles: []string{`\.ignore$`, `^ignore`},
-	}, mockLogger{})
+	}, zerolog.Nop())
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -350,7 +352,7 @@ func TestFs_Unprocessable(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			fs, err := NewFs(Config{
 				Dir: dir,
-			}, mockLogger{})
+			}, zerolog.Nop())
 			if err != nil {
 				t.Fatal(err)
 			}
