@@ -1,12 +1,16 @@
 package apierror
 
-import "github.com/encypher-studio/newsware-utils/api/response"
+import (
+	"github.com/encypher-studio/newsware-utils/api/response"
+	"github.com/rs/zerolog"
+)
 
 type ApiError[T any] struct {
 	inner      error
 	code       string
 	message    string
 	statusCode int
+	logLevel   zerolog.Level
 	data       T
 }
 
@@ -15,6 +19,7 @@ func New(code string, message string, statusCode int) ApiError[*int] {
 		code:       code,
 		message:    message,
 		statusCode: statusCode,
+		logLevel:   zerolog.NoLevel,
 	}
 }
 
@@ -23,6 +28,7 @@ func NewWithData[T any](code string, message string, statusCode int) ApiError[T]
 		code:       code,
 		message:    message,
 		statusCode: statusCode,
+		logLevel:   zerolog.NoLevel,
 	}
 }
 
@@ -60,4 +66,13 @@ func (a ApiError[T]) Code() string {
 
 func (a ApiError[T]) StatusCode() int {
 	return a.statusCode
+}
+
+func (a ApiError[T]) WithLogLevel(level zerolog.Level) ApiError[T] {
+	a.logLevel = level
+	return a
+}
+
+func (a ApiError[T]) LogLevel() zerolog.Level {
+	return a.logLevel
 }
