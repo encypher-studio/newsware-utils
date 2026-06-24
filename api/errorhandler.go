@@ -42,7 +42,7 @@ var ErrorHandler = func(l zerolog.Logger) fiber.ErrorHandler {
 				logLevel = zerolog.WarnLevel
 			}
 		}
-		l.WithLevel(logLevel).Err(err).Str("path", c.Path()).Send()
+		l.WithLevel(logLevel).Err(err).Str("path", c.Path()).Str("ip", c.IP()).Send()
 		return c.Status(code).JSON(resp)
 	}
 }
