@@ -22,6 +22,19 @@ type Config struct {
 	Env   Env    `yaml:"env"`
 }
 
+// WithDefaults returns a copy of c with any unset field filled from base. This
+// lets a top-level logger config provide defaults that per-service sections
+// override field-by-field.
+func (c Config) WithDefaults(base Config) Config {
+	if c.Level == "" {
+		c.Level = base.Level
+	}
+	if c.Env == "" {
+		c.Env = base.Env
+	}
+	return c
+}
+
 // New creates a zerolog.Logger that writes JSON to stdout. service must be
 // non-empty; cfg.Env must be EnvProduction or EnvStaging.
 func New(cfg Config, service string) (zerolog.Logger, error) {
