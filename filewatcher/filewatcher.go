@@ -6,7 +6,6 @@ import (
 	"fmt"
 
 	"github.com/encypher-studio/newsware-utils/indexer"
-	"github.com/encypher-studio/newsware-utils/indexmetrics"
 	"github.com/encypher-studio/newsware-utils/nwelastic"
 	"github.com/encypher-studio/newsware-utils/nwfs"
 	"github.com/rs/zerolog"
@@ -100,8 +99,6 @@ func (f *FileWatcher) Run() {
 				} else {
 					f.logger.Info().Str("path", newFile.Path).Msg("file deleted")
 				}
-
-				indexmetrics.MetricDocumentsIndexed.WithLabelValues().Inc()
 			}()
 		case <-ctx.Done():
 			return

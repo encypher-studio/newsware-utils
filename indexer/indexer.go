@@ -7,6 +7,7 @@ import (
 	"net/http"
 
 	"github.com/encypher-studio/newsware-utils/api/response"
+	"github.com/encypher-studio/newsware-utils/indexmetrics"
 	"github.com/encypher-studio/newsware-utils/nwelastic"
 	"github.com/pkg/errors"
 )
@@ -45,6 +46,8 @@ func (i Indexer) Index(news *nwelastic.News) error {
 	}
 
 	if resp.StatusCode >= 200 && resp.StatusCode <= 299 {
+		indexmetrics.MetricDocumentsIndexed.WithLabelValues(news.Source).Inc()
+		indexmetrics.MetricLastIndexedTimestamp.WithLabelValues(news.Source).SetToCurrentTime()
 		return handleEmptyResponse(resp)
 	}
 
