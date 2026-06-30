@@ -1,18 +1,13 @@
+// Package indexmetrics holds the Prometheus metrics specific to services that
+// index documents (the watchers). The generic, metric-agnostic registry and
+// HTTP serving live in nwmetrics; call nwmetrics.Init(service) once in main,
+// then indexmetrics.Register() to register these metrics with the service label.
 package indexmetrics
 
 import (
-	"fmt"
-	"net/http"
-	"os"
-
+	"github.com/encypher-studio/newsware-utils/nwmetrics"
 	"github.com/prometheus/client_golang/prometheus"
-	"github.com/prometheus/client_golang/prometheus/promhttp"
-	"github.com/rs/zerolog"
 )
-
-// DefaultPort is the standard port the metrics endpoint is served on across all
-// watchers. It can be overridden with the METRICS_PORT environment variable.
-const DefaultPort = "8080"
 
 var (
 	MetricServiceRestarts      *prometheus.CounterVec
@@ -20,11 +15,11 @@ var (
 	MetricLastIndexedTimestamp *prometheus.GaugeVec
 )
 
+// The index metrics are constructed at package load so they are never nil for
+// library consumers (e.g. the indexer package) that record to them regardless
+// of whether Register has run. They are only registered — and thus scraped —
+// once Register wires them into the service-labeled registry.
 func init() {
-	defaultRegistry := prometheus.NewRegistry()
-	prometheus.DefaultRegisterer = defaultRegistry
-	prometheus.DefaultGatherer = defaultRegistry
-
 	MetricServiceRestarts = prometheus.NewCounterVec(
 		prometheus.CounterOpts{
 			Name: "service_restarts",
@@ -48,44 +43,15 @@ func init() {
 		},
 		[]string{"source"},
 	)
+}
 
-	prometheus.MustRegister(
+// Register registers the index metrics through the service-labeled registry so
+// each carries the "service" label. nwmetrics.Init must have been called first.
+// Call it once from main.
+func Register() {
+	nwmetrics.Register(
 		MetricServiceRestarts,
 		MetricDocumentsIndexed,
 		MetricLastIndexedTimestamp,
 	)
-}
-
-type zerologPromhttpLogger struct{ log zerolog.Logger }
-
-func (l zerologPromhttpLogger) Println(v ...interface{}) {
-	l.log.Error().Msg(fmt.Sprint(v...))
-}
-
-// Handle returns an http.Handler that serves the Prometheus metrics.
-func Handle(log zerolog.Logger) http.Handler {
-	return promhttp.HandlerFor(prometheus.DefaultGatherer, promhttp.HandlerOpts{ErrorLog: zerologPromhttpLogger{log}})
-}
-
-// Serve serves the Prometheus metrics endpoint at /metrics. It listens on the
-// port from the METRICS_PORT environment variable, defaulting to DefaultPort.
-// It blocks and retries on error, so callers should run it in a goroutine:
-//
-//	go indexmetrics.Serve(logger)
-func Serve(log zerolog.Logger) {
-	port := os.Getenv("METRICS_PORT")
-	if port == "" {
-		port = DefaultPort
-	}
-
-	for {
-		mux := http.NewServeMux()
-		mux.Handle("/metrics", Handle(log))
-
-		log.Info().Str("port", port).Msg("serving metrics")
-
-		if err := http.ListenAndServe(":"+port, mux); err != nil {
-			log.Error().Err(err).Msg("failed to serve metrics")
-		}
-	}
 }
