@@ -46,8 +46,8 @@ func (i Indexer) Index(news *nwelastic.News) error {
 	}
 
 	if resp.StatusCode >= 200 && resp.StatusCode <= 299 {
-		indexmetrics.MetricDocumentsIndexed.WithLabelValues(news.Source).Inc()
-		indexmetrics.MetricLastIndexedTimestamp.WithLabelValues(news.Source).SetToCurrentTime()
+		indexmetrics.MetricDocumentsIndexed.Inc()
+		indexmetrics.MetricLastIndexedTimestamp.SetToCurrentTime()
 		return handleEmptyResponse(resp)
 	}
 

@@ -10,9 +10,8 @@ import (
 )
 
 var (
-	MetricServiceRestarts      *prometheus.CounterVec
-	MetricDocumentsIndexed     *prometheus.CounterVec
-	MetricLastIndexedTimestamp *prometheus.GaugeVec
+	MetricDocumentsIndexed     prometheus.Counter
+	MetricLastIndexedTimestamp prometheus.Gauge
 )
 
 // The index metrics are constructed at package load so they are never nil for
@@ -20,28 +19,18 @@ var (
 // of whether Register has run. They are only registered — and thus scraped —
 // once Register wires them into the service-labeled registry.
 func init() {
-	MetricServiceRestarts = prometheus.NewCounterVec(
-		prometheus.CounterOpts{
-			Name: "service_restarts",
-			Help: "Service restarts",
-		},
-		[]string{"timestamp"},
-	)
-
-	MetricDocumentsIndexed = prometheus.NewCounterVec(
+	MetricDocumentsIndexed = prometheus.NewCounter(
 		prometheus.CounterOpts{
 			Name: "documents_indexed_total",
-			Help: "Number of documents indexed, by source",
+			Help: "Number of documents indexed",
 		},
-		[]string{"source"},
 	)
 
-	MetricLastIndexedTimestamp = prometheus.NewGaugeVec(
+	MetricLastIndexedTimestamp = prometheus.NewGauge(
 		prometheus.GaugeOpts{
 			Name: "last_indexed_timestamp_seconds",
-			Help: "Unix timestamp of the last successfully indexed document, by source",
+			Help: "Unix timestamp of the last successfully indexed document",
 		},
-		[]string{"source"},
 	)
 }
 
@@ -50,7 +39,6 @@ func init() {
 // Call it once from main.
 func Register() {
 	nwmetrics.Register(
-		MetricServiceRestarts,
 		MetricDocumentsIndexed,
 		MetricLastIndexedTimestamp,
 	)
