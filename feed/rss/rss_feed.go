@@ -4,6 +4,8 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"net/http"
+	"strconv"
 	"strings"
 	"time"
 
@@ -15,6 +17,25 @@ import (
 )
 
 var ErrNoBody = errors.New("no body")
+
+// defaultRetryAfter is used when a feed returns a 429 without a usable
+// Retry-After header.
+const defaultRetryAfter = 30 * time.Second
+
+// httpClient is used to fetch feeds. The timeout prevents a hung request from
+// stalling a feed's poll loop indefinitely (gofeed's default client has none).
+var httpClient = &http.Client{Timeout: 30 * time.Second}
+
+// RateLimitError is returned when a feed responds with HTTP 429 Too Many
+// Requests. RetryAfter carries how long to wait before retrying, taken from the
+// Retry-After header when present, otherwise defaultRetryAfter.
+type RateLimitError struct {
+	RetryAfter time.Duration
+}
+
+func (e *RateLimitError) Error() string {
+	return fmt.Sprintf("rate limited (429), retry after %s", e.RetryAfter)
+}
 
 type record struct {
 	id   string
@@ -52,6 +73,7 @@ func NewRSSFeed(cfg RSSFeedConfig, tickerParser ITickerParser, s *state.State, i
 
 func (r RSSFeed) Poll(ctx context.Context) error {
 	timer := time.NewTicker(r.PollTime)
+	defer timer.Stop()
 	for {
 		select {
 		case <-ctx.Done():
@@ -59,6 +81,19 @@ func (r RSSFeed) Poll(ctx context.Context) error {
 		default:
 			news, err := r.newRecords()
 			if err != nil {
+				// On a rate limit, back off for the duration the server asked
+				// for and keep polling instead of crashing the feed.
+				var rateLimitErr *RateLimitError
+				if errors.As(err, &rateLimitErr) {
+					r.logger.Warn().
+						Str("feed", r.URL).
+						Dur("retryAfter", rateLimitErr.RetryAfter).
+						Msg("rate limited, backing off")
+					if !sleepCtx(ctx, rateLimitErr.RetryAfter) {
+						return fmt.Errorf("context canceled")
+					}
+					continue
+				}
 				return err
 			}
 
@@ -87,8 +122,7 @@ func (r RSSFeed) Poll(ctx context.Context) error {
 }
 
 func (r RSSFeed) newRecords() ([]record, error) {
-	fp := gofeed.NewParser()
-	feed, err := fp.ParseURL(r.URL)
+	feed, err := r.fetchFeed()
 	if err != nil {
 		return nil, err
 	}
@@ -130,6 +164,71 @@ func (r RSSFeed) newRecords() ([]record, error) {
 	}
 
 	return records, nil
+}
+
+// fetchFeed retrieves and parses the feed using a timeout-bounded HTTP client.
+// On HTTP 429 it returns a *RateLimitError carrying the Retry-After duration so
+// the caller can back off instead of treating it as a fatal error.
+func (r RSSFeed) fetchFeed() (*gofeed.Feed, error) {
+	req, err := http.NewRequest(http.MethodGet, r.URL, nil)
+	if err != nil {
+		return nil, err
+	}
+	// Mirror gofeed's default User-Agent so feeds that filter on it keep working.
+	req.Header.Set("User-Agent", "Gofeed/1.0")
+
+	resp, err := httpClient.Do(req)
+	if err != nil {
+		return nil, err
+	}
+	defer resp.Body.Close()
+
+	if resp.StatusCode == http.StatusTooManyRequests {
+		return nil, &RateLimitError{RetryAfter: parseRetryAfter(resp.Header.Get("Retry-After"))}
+	}
+	if resp.StatusCode < 200 || resp.StatusCode > 299 {
+		return nil, fmt.Errorf("http error: %s", resp.Status)
+	}
+
+	return gofeed.NewParser().Parse(resp.Body)
+}
+
+// parseRetryAfter interprets a Retry-After header value, which may be either a
+// number of seconds or an HTTP date. It falls back to defaultRetryAfter when the
+// header is missing or unparseable.
+func parseRetryAfter(value string) time.Duration {
+	value = strings.TrimSpace(value)
+	if value == "" {
+		return defaultRetryAfter
+	}
+
+	if secs, err := strconv.Atoi(value); err == nil {
+		if secs <= 0 {
+			return defaultRetryAfter
+		}
+		return time.Duration(secs) * time.Second
+	}
+
+	if t, err := http.ParseTime(value); err == nil {
+		if d := time.Until(t); d > 0 {
+			return d
+		}
+	}
+
+	return defaultRetryAfter
+}
+
+// sleepCtx sleeps for d or until ctx is canceled. It returns false if ctx was
+// canceled before the duration elapsed.
+func sleepCtx(ctx context.Context, d time.Duration) bool {
+	t := time.NewTimer(d)
+	defer t.Stop()
+	select {
+	case <-ctx.Done():
+		return false
+	case <-t.C:
+		return true
+	}
 }
 
 // lastIdIndex returns the index of the last item with the stored lastId
